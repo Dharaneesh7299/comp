@@ -10,8 +10,35 @@ datasource db {
 }
 
 
-model HOD{
+model Hod{
   id        Int      @id @default(autoincrement())
   name      String   @unique
-  pasword   String   @unique
+  pasword   String
+}
+
+model Teacher{
+  id           Int        @id @default(autoincrement())
+  name         String
+  email_id     String     @unique
+  password     String
+  created_at   DateTime   @default(now())
+}
+
+model Student {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  competitions Competition[] @relation("StudentCompetitions")
+  createdAt    DateTime      @default(now())
+}
+
+model Competition {
+  id        Int       @id @default(autoincrement())
+  name      String
+  url       String
+  about     String?
+  date      DateTime
+  deadline  DateTime
+  students  Student[] @relation("StudentCompetitions")
+  createdAt DateTime  @default(now())
 }
