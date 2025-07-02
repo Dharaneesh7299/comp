@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -9,27 +8,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-model Hod{
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  pasword   String
+model Hod {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  password String
 }
 
-model Teacher{
-  id           Int        @id @default(autoincrement())
-  name         String
-  email_id     String     @unique
-  password     String
-  created_at   DateTime   @default(now())
+model Teacher {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  password   String
+  created_at DateTime @default(now())
 }
 
 model Student {
-  id           Int           @id @default(autoincrement())
-  name         String
-  email        String        @unique
-  competitions Competition[] @relation("StudentCompetitions")
-  createdAt    DateTime      @default(now())
+  id       Int        @id @default(autoincrement())
+  name     String
+  email    String     @unique
+  teams    TeamMember[]
+  createdAt DateTime  @default(now())
+}
+
+model Team {
+  id            Int          @id @default(autoincrement())
+  name          String
+  competition   Competition  @relation(fields: [competitionId], references: [id])
+  competitionId Int
+  members       TeamMember[]
+  createdAt     DateTime     @default(now())
+}
+
+model TeamMember {
+  id        Int     @id @default(autoincrement())
+  student   Student @relation(fields: [studentId], references: [id])
+  studentId Int
+  team      Team    @relation(fields: [teamId], references: [id])
+  teamId    Int
+
+  @@unique([studentId, teamId])
 }
 
 model Competition {
@@ -39,6 +56,6 @@ model Competition {
   about     String?
   date      DateTime
   deadline  DateTime
-  students  Student[] @relation("StudentCompetitions")
+  teams     Team[]
   createdAt DateTime  @default(now())
 }
