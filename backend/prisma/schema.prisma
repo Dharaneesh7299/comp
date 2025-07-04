@@ -43,6 +43,7 @@ model TeamMember {
   id        Int     @id @default(autoincrement())
   student   Student @relation(fields: [studentId], references: [id])
   studentId Int
+  role      Role
   team      Team    @relation(fields: [teamId], references: [id])
   teamId    Int
 
@@ -58,4 +59,10 @@ model Competition {
   deadline  DateTime
   teams     Team[]
   createdAt DateTime  @default(now())
+}
+
+
+enum Role {
+  LEADER
+  MEMBER
 }
