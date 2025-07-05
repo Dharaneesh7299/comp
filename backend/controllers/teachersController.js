@@ -1,7 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-
+const add_student = async (req,res) => {
+    const {name,email,registerno,department,year,}=res.body;
+}
 const get_student = async (req, res) => {
   try {
     const students = await prisma.student.findMany({

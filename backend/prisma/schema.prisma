@@ -15,11 +15,20 @@ model Hod {
 }
 
 model Teacher {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String   @unique
-  password   String
-  created_at DateTime @default(now())
+  id                      Int      @id @default(autoincrement())
+  name                    String
+  email                   String   @unique
+  password                String
+  institution             String
+  department              Dept
+  position                Position
+  phone                   String   @unique
+  office                  String
+  bio                     String
+  specialization          String
+  qualifications          String
+  professional_experience String
+  created_at              DateTime @default(now())
 }
 
 model Student {
@@ -68,8 +77,8 @@ enum Role {
   LEADER
   MEMBER
 }
-
-enum Dept{
+ 
+enum Dept {
   IT
   CSE
   AIDS
@@ -79,9 +88,16 @@ enum Dept{
   MECH
 }
 
-enum Year{
+enum Year {
   first_Year
   second_Year
   third_Year
   fourth_Year
+}
+
+enum Position {
+  PROFESSOR
+  ASSOCIATE_PROFESSOR
+  ASSISTANT_PROFESSOR
+  HOD
 }
