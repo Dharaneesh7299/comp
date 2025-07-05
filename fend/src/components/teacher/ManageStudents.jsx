@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Plus, Edit, Trash2, Mail, GraduationCap, Calendar } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Mail, GraduationCap, Calendar, Hash } from "lucide-react"
 import { mockData } from "../../lib/mockData"
 
 export default function ManageStudents() {
@@ -12,7 +12,7 @@ export default function ManageStudents() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    institution: "",
+    registrationNo: "",
     year: "",
     major: "",
   })
@@ -21,7 +21,7 @@ export default function ManageStudents() {
     (student) =>
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.institution.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.registrationNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.major.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
@@ -51,7 +51,7 @@ export default function ManageStudents() {
     setFormData({
       name: "",
       email: "",
-      institution: "",
+      registrationNo: "",
       year: "",
       major: "",
     })
@@ -64,7 +64,7 @@ export default function ManageStudents() {
     setFormData({
       name: student.name,
       email: student.email,
-      institution: student.institution,
+      registrationNo: student.registrationNo,
       year: student.year,
       major: student.major,
     })
@@ -83,7 +83,7 @@ export default function ManageStudents() {
     setFormData({
       name: "",
       email: "",
-      institution: "",
+      registrationNo: "",
       year: "",
       major: "",
     })
@@ -112,7 +112,7 @@ export default function ManageStudents() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search students by name, email, institution, or major..."
+            placeholder="Search students by name, email, registration number, or major..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -150,12 +150,13 @@ export default function ManageStudents() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Institution *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Registration Number *</label>
               <input
                 type="text"
                 required
-                value={formData.institution}
-                onChange={(e) => handleInputChange("institution", e.target.value)}
+                value={formData.registrationNo}
+                onChange={(e) => handleInputChange("registrationNo", e.target.value)}
+                placeholder="e.g., CS2021001"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -226,7 +227,7 @@ export default function ManageStudents() {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Student</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Institution</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Registration No.</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Year & Major</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Registered</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
@@ -245,7 +246,10 @@ export default function ManageStudents() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-gray-900">{student.institution}</span>
+                        <div className="flex items-center text-gray-900">
+                          <Hash className="h-3 w-3 mr-1 text-gray-500" />
+                          <span className="font-mono text-sm">{student.registrationNo}</span>
+                        </div>
                       </td>
                       <td className="py-4 px-4">
                         <div>
