@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Plus, Edit, Trash2, Eye, Calendar, MapPin, Users, Trophy } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Eye, Calendar, MapPin, Users, Trophy, ExternalLink } from "lucide-react"
 import { mockData } from "../../lib/mockData"
 
 export default function ManageCompetitions() {
@@ -22,6 +22,7 @@ export default function ManageCompetitions() {
     teamSize: 1,
     prizePool: "",
     priority: "medium",
+    url: "",
   })
 
   const filteredCompetitions = competitions.filter((competition) => {
@@ -71,6 +72,7 @@ export default function ManageCompetitions() {
       teamSize: 1,
       prizePool: "",
       priority: "medium",
+      url: "",
     })
     setShowAddForm(false)
     setEditingCompetition(null)
@@ -90,6 +92,7 @@ export default function ManageCompetitions() {
       teamSize: competition.teamSize,
       prizePool: competition.prizePool,
       priority: competition.priority,
+      url: competition.url || "",
     })
     setShowAddForm(true)
   }
@@ -180,6 +183,18 @@ export default function ManageCompetitions() {
                   required
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Competition URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={formData.url}
+                  onChange={(e) => handleInputChange("url", e.target.value)}
+                  placeholder="https://example.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -331,9 +346,23 @@ export default function ManageCompetitions() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{competition.title}</h3>
-                <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full mb-2">
-                  {competition.category}
-                </span>
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                    {competition.category}
+                  </span>
+                  {competition.url && (
+                    <a
+                      href={competition.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-blue-600 hover:text-blue-800 text-xs"
+                      title="Visit Competition Website"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Website
+                    </a>
+                  )}
+                </div>
               </div>
               {getStatusBadge(competition.status)}
             </div>

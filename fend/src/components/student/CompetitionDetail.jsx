@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { ArrowLeft, Calendar, Users, MapPin, Clock, Trophy, Star, CheckCircle } from "lucide-react"
+import { ArrowLeft, Calendar, Users, MapPin, Clock, Trophy, Star, CheckCircle, ExternalLink } from "lucide-react"
 import { mockData } from "../../lib/mockData"
 
 export default function CompetitionDetail() {
@@ -111,6 +111,17 @@ export default function CompetitionDetail() {
                 <Star className="h-4 w-4 text-yellow-500" />
                 <span className="font-medium">Priority: {competition.priority.toUpperCase()}</span>
               </div>
+              {competition.url && (
+                <a
+                  href={competition.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Official Website
+                </a>
+              )}
             </div>
 
             <p className="text-gray-700 text-lg leading-relaxed">{competition.description}</p>
