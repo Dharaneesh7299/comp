@@ -1,0 +1,394 @@
+"use client"
+
+import { useState } from "react"
+import { Users, Plus, Search, Edit, Trash2, Save, X, Hash, Mail, GraduationCap, Calendar } from "lucide-react"
+import { mockData } from "../../lib/mockData"
+
+export default function ManageStudents() {
+  const [students, setStudents] = useState(mockData.students)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingStudent, setEditingStudent] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterYear, setFilterYear] = useState("")
+  const [filterMajor, setFilterMajor] = useState("")
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    registrationNo: "",
+    year: "",
+    major: "",
+  })
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      registrationNo: "",
+      year: "",
+      major: "",
+    })
+  }
+
+  const handleAddStudent = () => {
+    setShowAddForm(true)
+    setEditingStudent(null)
+    resetForm()
+  }
+
+  const handleEditStudent = (student) => {
+    setEditingStudent(student.id)
+    setFormData({
+      name: student.name,
+      email: student.email,
+      registrationNo: student.registrationNo,
+      year: student.year,
+      major: student.major,
+    })
+    setShowAddForm(true)
+  }
+
+  const handleSaveStudent = () => {
+    if (!formData.name || !formData.email || !formData.registrationNo || !formData.year || !formData.major) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    if (editingStudent) {
+      // Update existing student
+      setStudents((prev) =>
+        prev.map((student) =>
+          student.id === editingStudent ? { ...student, ...formData, updatedAt: new Date().toISOString() } : student,
+        ),
+      )
+    } else {
+      // Add new student
+      const newStudent = {
+        id: Date.now(),
+        ...formData,
+        registeredAt: new Date().toISOString(),
+      }
+      setStudents((prev) => [...prev, newStudent])
+    }
+
+    setShowAddForm(false)
+    setEditingStudent(null)
+    resetForm()
+  }
+
+  const handleDeleteStudent = (studentId) => {
+    if (window.confirm("Are you sure you want to delete this student?")) {
+      setStudents((prev) => prev.filter((student) => student.id !== studentId))
+    }
+  }
+
+  const handleCancel = () => {
+    setShowAddForm(false)
+    setEditingStudent(null)
+    resetForm()
+  }
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // Filter students based on search and filters
+  const filteredStudents = students.filter((student) => {
+    const matchesSearch =
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.registrationNo.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesYear = !filterYear || student.year === filterYear
+    const matchesMajor = !filterMajor || student.major.toLowerCase().includes(filterMajor.toLowerCase())
+
+    return matchesSearch && matchesYear && matchesMajor
+  })
+
+  const uniqueYears = [...new Set(students.map((s) => s.year))].sort()
+  const uniqueMajors = [...new Set(students.map((s) => s.major))].sort()
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Users className="h-8 w-8 text-blue-600" />
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Manage Students</h1>
+            <p className="text-gray-600">Add, edit, and manage student registrations</p>
+          </div>
+        </div>
+        <button
+          onClick={handleAddStudent}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Add Student</span>
+        </button>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow-md border p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search by name, email, or registration number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Years</option>
+              {uniqueYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <select
+              value={filterMajor}
+              onChange={(e) => setFilterMajor(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Majors</option>
+              {uniqueMajors.map((major) => (
+                <option key={major} value={major}>
+                  {major}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Add/Edit Student Form */}
+      {showAddForm && (
+        <div className="bg-white rounded-lg shadow-md border p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {editingStudent ? "Edit Student" : "Add New Student"}
+            </h2>
+            <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter student's full name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="student@university.edu"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Registration Number *</label>
+              <input
+                type="text"
+                value={formData.registrationNo}
+                onChange={(e) => handleInputChange("registrationNo", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                placeholder="CS2021001"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+              <select
+                value={formData.year}
+                onChange={(e) => handleInputChange("year", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="">Select Year</option>
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+                <option value="Graduate">Graduate</option>
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Major/Field of Study *</label>
+              <input
+                type="text"
+                value={formData.major}
+                onChange={(e) => handleInputChange("major", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Computer Science"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveStudent}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+            >
+              <Save className="h-4 w-4" />
+              <span>{editingStudent ? "Update Student" : "Add Student"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Students List */}
+      <div className="bg-white rounded-lg shadow-md border">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Students ({filteredStudents.length})</h2>
+            {(searchTerm || filterYear || filterMajor) && (
+              <button
+                onClick={() => {
+                  setSearchTerm("")
+                  setFilterYear("")
+                  setFilterMajor("")
+                }}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center space-x-1"
+              >
+                <X className="h-3 w-3" />
+                <span>Clear Filters</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Student
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Registration No.
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Academic Info
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Registered
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredStudents.map((student) => (
+                <tr key={student.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                      <div className="text-sm text-gray-500 flex items-center">
+                        <Mail className="h-3 w-3 mr-1" />
+                        {student.email}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-900">
+                      <Hash className="h-3 w-3 mr-1 text-gray-400" />
+                      <span className="font-mono">{student.registrationNo}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 flex items-center">
+                      <Calendar className="h-3 w-3 mr-1 text-gray-400" />
+                      {student.year}
+                    </div>
+                    <div className="text-sm text-gray-500 flex items-center">
+                      <GraduationCap className="h-3 w-3 mr-1 text-gray-400" />
+                      {student.major}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(student.registeredAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEditStudent(student)}
+                        className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStudent(student.id)}
+                        className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredStudents.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm || filterYear || filterMajor ? "No students found" : "No students yet"}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm || filterYear || filterMajor
+                ? "Try adjusting your search or filter criteria"
+                : "Start by adding your first student to the system"}
+            </p>
+            {!(searchTerm || filterYear || filterMajor) && (
+              <button
+                onClick={handleAddStudent}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Add First Student
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
