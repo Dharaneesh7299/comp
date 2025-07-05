@@ -32,14 +32,19 @@ model Teacher {
 }
 
 model Student {
-  id          Int            @id @default(autoincrement())
-  name        String
-  email       String          @unique
-  registerno  String          @unique
-  department  Dept
-  year        Year
-  teams       TeamMember[]
-  createdAt   DateTime        @default(now())
+  id               Int            @id @default(autoincrement())
+  name             String
+  email            String          @unique
+  registerno       String          @unique
+  department       Dept
+  year             Year
+  Address          String           @default("Provide It")
+  phone            String           @default("Provide It")
+  bio              String           @default("Provide It")
+  skills           String           @default("Provide It")
+  Achivements      String           @default("Provide It")
+  teams            TeamMember[]
+  createdAt        DateTime        @default(now())
 }
 
 model Team {
