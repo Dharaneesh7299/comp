@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 require("dotenv").config();
+const teachroute = require("./routes/teachersRoutes")
 
 const PORT = process.env.PORT || 4000;
 
@@ -15,6 +16,8 @@ app.use(morgan("dev"));
 app.get("/",(req,res)=>{
     res.send("api working");
 })
+
+app.use("/api/teacher" , teachroute);
 
 
 app.listen(PORT, () => {
