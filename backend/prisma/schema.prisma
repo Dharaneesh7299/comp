@@ -68,14 +68,21 @@ model TeamMember {
 }
 
 model Competition {
-  id        Int       @id @default(autoincrement())
-  name      String
-  url       String
-  about     String?
-  date      DateTime
-  deadline  DateTime
-  teams     Team[]
-  createdAt DateTime  @default(now())
+  id          Int         @id @default(autoincrement())
+  name        String
+  url         String
+  about       String
+  category    String
+  status      Status
+  startdate   DateTime
+  enddate     DateTime
+  deadline    DateTime
+  location    String
+  team_size   Int
+  prize_pool  Int
+  priority    Priority
+  teams       Team[]
+  createdAt   DateTime    @default(now())
 }
 
 enum Role {
@@ -105,4 +112,17 @@ enum Position {
   ASSOCIATE_PROFESSOR
   ASSISTANT_PROFESSOR
   HOD
+}
+
+enum Status {
+  REGISTRATION_OPEN
+  UPCOMING
+  ONGOING
+  COMPLETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
 }
