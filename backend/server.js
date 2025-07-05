@@ -3,6 +3,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 require("dotenv").config();
 const teachroute = require("./routes/teachersRoutes")
+const comproutes = require("./routes/compRoutes")
 
 const PORT = process.env.PORT || 4000;
 
@@ -18,6 +19,8 @@ app.get("/",(req,res)=>{
 })
 
 app.use("/api/teacher" , teachroute);
+
+app.use("/api/comp",comproutes);
 
 
 app.listen(PORT, () => {
