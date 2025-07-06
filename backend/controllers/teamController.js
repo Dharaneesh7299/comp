@@ -1,7 +1,7 @@
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 
-//  CREATE TEAM
+// CREATE TEAM
 const createTeam = async (req, res) => {
   const {
     name,
@@ -12,7 +12,6 @@ const createTeam = async (req, res) => {
     memberRegisterNumbers
   } = req.body;
 
-  //  Basic validation
   if (
     !name ||
     !competitionId ||
@@ -27,7 +26,6 @@ const createTeam = async (req, res) => {
   }
 
   try {
-    // Find matching students
     const students = await prisma.student.findMany({
       where: { registerno: { in: memberRegisterNumbers } }
     });
@@ -39,7 +37,6 @@ const createTeam = async (req, res) => {
       });
     }
 
-    // Create team
     const team = await prisma.team.create({
       data: {
         name,
@@ -55,9 +52,7 @@ const createTeam = async (req, res) => {
         }
       },
       include: {
-        members: {
-          include: { student: true }
-        },
+        members: { include: { student: true } },
         competition: true
       }
     });
@@ -69,9 +64,9 @@ const createTeam = async (req, res) => {
   }
 };
 
-//  GET TEAMS FOR A STUDENT
+// GET ALL TEAMS FOR A STUDENT
 const getAllTeams = async (req, res) => {
-  const { studentId } = req.query;
+  const { studentId } = req.body;
 
   if (!studentId) {
     return res.status(400).json({ message: 'studentId query parameter is required' });
@@ -81,16 +76,12 @@ const getAllTeams = async (req, res) => {
     const teams = await prisma.team.findMany({
       where: {
         members: {
-          some: {
-            studentId: Number(studentId)
-          }
+          some: { studentId: Number(studentId) }
         }
       },
       include: {
         competition: true,
-        members: {
-          include: { student: true }
-        }
+        members: { include: { student: true } }
       }
     });
 
@@ -101,43 +92,88 @@ const getAllTeams = async (req, res) => {
   }
 };
 
-//  UPDATE TEAM DETAILS
+// UPDATE TEAM DETAILS
 const updateTeam = async (req, res) => {
   const {
     id,
     name,
     competitionId,
-    status,
     motive,
     experience_level,
-    certifacte
+    certificate,
+    memberRegisterNumbers
   } = req.body;
 
-  if (!id || !name || !competitionId || !motive || !experience_level || !status) {
-    return res.status(400).json({ message: 'Missing required fields in request body' });
+  if (
+    !id ||
+    !name ||
+    !competitionId ||
+    !motive ||
+    !experience_level ||
+    !Array.isArray(memberRegisterNumbers) ||
+    memberRegisterNumbers.length === 0
+  ) {
+    return res.status(400).json({
+      message: 'Missing required fields: id, name, competitionId, motive, experience_level, or memberRegisterNumbers'
+    });
   }
 
   try {
-    const updatedTeam = await prisma.team.update({
-      where: { id: Number(id) },
-      data: {
-        name,
-        competitionId: Number(competitionId),
-        status,
-        motive,
-        experience_level,
-        certifacte
-      }
+    const students = await prisma.student.findMany({
+      where: { registerno: { in: memberRegisterNumbers } }
     });
 
-    res.status(200).json({ message: 'Team updated successfully', team: updatedTeam });
-  } catch (error) {
-    console.error('Update team error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
+    if (students.length !== memberRegisterNumbers.length) {
+      return res.status(400).json({
+        message: 'Some registration numbers were not found',
+        found: students.map((s) => s.registerno)
+      });
+    }
 
-//  UPDATE TEAM STATUS
+    const teamId = Number(id);
+
+    const updatedTeam = await prisma.$transaction(async (tx) => {
+        await tx.teamMember.deleteMany({ where: { teamId } });
+
+        await tx.team.update({
+          where: { id: teamId },
+          data: {
+            name,
+            motive,
+            experience_level,
+            certifacte : certificate,
+            competition: {
+              connect: { id: Number(competitionId) }
+            }
+          }
+        });
+
+        await tx.teamMember.createMany({
+          data: students.map((student, index) => ({
+            teamId,
+            studentId: student.id,
+            role: index === 0 ? 'LEADER' : 'DEVELOPER'
+          }))
+        });
+
+        return tx.team.findUnique({
+          where: { id: teamId },
+          include: {
+            members: { include: { student: true } },
+            competition: true
+          }
+        });
+      });
+
+
+          res.status(200).json({ message: 'Team updated successfully', team: updatedTeam });
+        } catch (error) {
+          console.error('Update team error:', error);
+          res.status(500).json({ message: 'Server error', error: error.message });
+        }
+      };
+
+// UPDATE TEAM STATUS
 const updateTeamStatus = async (req, res) => {
   const { teamId, status } = req.body;
 
@@ -154,11 +190,10 @@ const updateTeamStatus = async (req, res) => {
       return res.status(404).json({ message: 'Team not found' });
     }
 
-    // Example logic if you have a "del_status" field
     if (status === 'REJECTED' || status === 'WON') {
       await prisma.team.update({
         where: { id: Number(teamId) },
-        data: { del_status: 'OFFLINE' } // Only if this field exists in your schema
+        data: { del_status: 'OFFLINE' }
       });
     }
 
@@ -177,20 +212,20 @@ const updateTeamStatus = async (req, res) => {
   }
 };
 
-//  DELETE TEAM
+// DELETE TEAM
 const deleteTeam = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.body;
 
   if (!id) {
     return res.status(400).json({ message: 'Team ID is required' });
   }
 
   try {
-    // Delete team members first (because of foreign key constraint)
-    await prisma.teamMember.deleteMany({ where: { teamId: Number(id) } });
-
-    // Then delete the team
-    await prisma.team.delete({ where: { id: Number(id) } });
+    const teamId = Number(id);
+    await prisma.$transaction([
+      prisma.teamMember.deleteMany({ where: { teamId } }),
+      prisma.team.delete({ where: { id: teamId } })
+    ]);
 
     res.status(200).json({ message: 'Team deleted successfully' });
   } catch (error) {
