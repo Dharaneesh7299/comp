@@ -1,7 +1,7 @@
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 
-// CREATE TEAM
+//  CREATE TEAM
 const createTeam = async (req, res) => {
   const {
     name,
@@ -12,7 +12,22 @@ const createTeam = async (req, res) => {
     memberRegisterNumbers
   } = req.body;
 
+  //  Basic validation
+  if (
+    !name ||
+    !competitionId ||
+    !motive ||
+    !experience_level ||
+    !Array.isArray(memberRegisterNumbers) ||
+    memberRegisterNumbers.length === 0
+  ) {
+    return res.status(400).json({
+      message: 'Missing required fields: name, competitionId, motive, experience_level, or memberRegisterNumbers'
+    });
+  }
+
   try {
+    // Find matching students
     const students = await prisma.student.findMany({
       where: { registerno: { in: memberRegisterNumbers } }
     });
@@ -24,6 +39,7 @@ const createTeam = async (req, res) => {
       });
     }
 
+    // Create team
     const team = await prisma.team.create({
       data: {
         name,
@@ -36,12 +52,13 @@ const createTeam = async (req, res) => {
             studentId: student.id,
             role: index === 0 ? 'LEADER' : 'DEVELOPER'
           }))
-        }    
+        }
       },
       include: {
         members: {
           include: { student: true }
-        }
+        },
+        competition: true
       }
     });
 
@@ -52,9 +69,13 @@ const createTeam = async (req, res) => {
   }
 };
 
-
+//  GET TEAMS FOR A STUDENT
 const getAllTeams = async (req, res) => {
   const { studentId } = req.query;
+
+  if (!studentId) {
+    return res.status(400).json({ message: 'studentId query parameter is required' });
+  }
 
   try {
     const teams = await prisma.team.findMany({
@@ -80,7 +101,7 @@ const getAllTeams = async (req, res) => {
   }
 };
 
-// UPDATE TEAM
+//  UPDATE TEAM DETAILS
 const updateTeam = async (req, res) => {
   const {
     id,
@@ -91,6 +112,10 @@ const updateTeam = async (req, res) => {
     experience_level,
     certifacte
   } = req.body;
+
+  if (!id || !name || !competitionId || !motive || !experience_level || !status) {
+    return res.status(400).json({ message: 'Missing required fields in request body' });
+  }
 
   try {
     const updatedTeam = await prisma.team.update({
@@ -112,12 +137,59 @@ const updateTeam = async (req, res) => {
   }
 };
 
-// DELETE TEAM
+//  UPDATE TEAM STATUS
+const updateTeamStatus = async (req, res) => {
+  const { teamId, status } = req.body;
+
+  if (!teamId || !status) {
+    return res.status(400).json({ message: 'Team ID and status are required' });
+  }
+
+  try {
+    const existing = await prisma.team.findUnique({
+      where: { id: Number(teamId) }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'Team not found' });
+    }
+
+    // Example logic if you have a "del_status" field
+    if (status === 'REJECTED' || status === 'WON') {
+      await prisma.team.update({
+        where: { id: Number(teamId) },
+        data: { del_status: 'OFFLINE' } // Only if this field exists in your schema
+      });
+    }
+
+    const updatedTeam = await prisma.team.update({
+      where: { id: Number(teamId) },
+      data: { status }
+    });
+
+    res.status(200).json({
+      message: 'Team status updated successfully',
+      team: updatedTeam
+    });
+  } catch (error) {
+    console.error('Error updating team status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+//  DELETE TEAM
 const deleteTeam = async (req, res) => {
   const { id } = req.params;
 
+  if (!id) {
+    return res.status(400).json({ message: 'Team ID is required' });
+  }
+
   try {
+    // Delete team members first (because of foreign key constraint)
     await prisma.teamMember.deleteMany({ where: { teamId: Number(id) } });
+
+    // Then delete the team
     await prisma.team.delete({ where: { id: Number(id) } });
 
     res.status(200).json({ message: 'Team deleted successfully' });
@@ -131,5 +203,6 @@ module.exports = {
   createTeam,
   getAllTeams,
   updateTeam,
+  updateTeamStatus,
   deleteTeam
 };
