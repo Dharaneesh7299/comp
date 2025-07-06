@@ -48,12 +48,16 @@ model Student {
 }
 
 model Team {
-  id            Int          @id @default(autoincrement())
-  name          String
-  competition   Competition  @relation(fields: [competitionId], references: [id])
-  competitionId Int
-  members       TeamMember[]
-  createdAt     DateTime     @default(now())
+  id                Int          @id @default(autoincrement())
+  name              String
+  competition       Competition  @relation(fields: [competitionId], references: [id])
+  competitionId     Int
+  status            Tstatus      @default(REGISTERED)
+  members           TeamMember[]
+  motive            String
+  experience_level  Experience   @default(BEGINNER)
+  certifacte        String?
+  createdAt         DateTime     @default(now())
 }
 
 model TeamMember {
@@ -87,7 +91,7 @@ model Competition {
 
 enum Role {
   LEADER
-  MEMBER
+  DEVELOPER
 }
  
 enum Dept {
@@ -125,4 +129,17 @@ enum Priority {
   LOW
   MEDIUM
   HIGH
+}
+
+enum Tstatus {
+  REGISTERED
+  SHORTLISTED
+  REJECTED
+  WON
+}
+
+enum Experience {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
 }
