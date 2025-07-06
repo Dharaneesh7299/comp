@@ -113,8 +113,43 @@ const month_count = async (req,res) => {
 
 };
 
+//selecting the most registered comp
+const most_reg = async (req,res) => {
+
+    try {
+        const most_one = await prisma.competition.findMany({
+            select : {
+                id : true,
+                name : true,
+                category : true,
+                status : true,
+                prize_pool : true,
+                _count : {
+                    select : {
+                        teams : true
+                    }
+                }
+            },
+            orderBy : {
+                teams: {
+                    _count: 'desc'
+                },
+            },
+            take : 5
+        });
+
+        return res.status(200).json({message : "fetched successfully" , data : most_one});
+    }
+
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({message : "internal server error" , error : error.message});
+    }
+}
+
 module.exports = { 
     int_data ,
     category_count,
-    month_count
+    month_count,
+    most_reg
 };
