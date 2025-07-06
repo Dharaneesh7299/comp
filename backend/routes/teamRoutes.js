@@ -6,5 +6,5 @@ router.post('/create', teamController.createTeam);
 router.get('/get', teamController.getAllTeams);
 router.put('/update', teamController.updateTeam);
 router.delete('/delete', teamController.deleteTeam);
-
+router.put('/update-status', teamController.updateTeamStatus);
 module.exports = router;
