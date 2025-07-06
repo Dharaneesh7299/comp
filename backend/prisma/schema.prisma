@@ -53,6 +53,7 @@ model Team {
   competition       Competition  @relation(fields: [competitionId], references: [id])
   competitionId     Int
   status            Tstatus      @default(REGISTERED)
+  del_status        Delstatus    @default(ONLINE)
   members           TeamMember[]
   motive            String
   experience_level  Experience   @default(BEGINNER)
@@ -142,4 +143,9 @@ enum Experience {
   BEGINNER
   INTERMEDIATE
   ADVANCED
+}
+
+enum Delstatus {
+  ONLINE
+  OFFLINE
 }
