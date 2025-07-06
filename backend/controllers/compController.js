@@ -103,8 +103,9 @@ const delete_comp = async (req,res) => {
             return res.status(404).json({message : "competion not found"});
         }
 
-        const del_comp = await prisma.competition.delete({
-            where : { id }
+        const del_comp = await prisma.competition.update({
+            where : { id },
+            data : { status : "COMPLETED"},
         })
 
         return res.status(200).json({message : "deleted successfully"});
@@ -121,6 +122,11 @@ const delete_comp = async (req,res) => {
 const get_comp = async (req,res) => {
     try {
         const g_comp = await prisma.competition.findMany({
+            where : {
+                NOT : {
+                    status : "COMPLETED"
+                }
+            },
             select : {
                 id : true,
                 name : true,
