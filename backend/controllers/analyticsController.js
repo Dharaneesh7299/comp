@@ -147,9 +147,78 @@ const most_reg = async (req,res) => {
     }
 }
 
+//dahsboard recent competitons
+const recent_comp = async (req,res)=>{
+    try {
+        const rec_comp = await prisma.competition.findMany({
+            where : {
+                NOT : {
+                    status : "COMPLETED"
+                }
+            },
+            select : {
+                id : true,
+                name : true,
+                url : true,
+                about : true,
+                category : true,
+                status : true,
+                startdate : true,
+                enddate : true,
+                deadline : true,
+                location : true,
+                team_size : true,
+                prize_pool : true,
+                priority : true,
+            },
+            orderBy : {createdAt : 'desc'},
+            take : 3,
+        });
+
+        return res.status(200).json({message : "fetched successfully" , data : rec_comp});
+    }
+
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({message : "internal server error" , error : error.message});
+    }
+}
+
+//recent team registrations
+const rec_reg = async (req,res) => {
+  try {
+    const r_team = await prisma.team.findMany({
+      orderBy  : {
+        createdAt : 'desc',
+      },
+      select : {
+        id : true,
+        name : true,
+        createdAt : true,
+        competition : {
+          select : {
+            name : true,
+            status : true,
+          }
+        }
+      },
+      take : 5,
+    }); 
+    
+    return res.status(200).json({message : "fetched successfully" , data : r_team});
+
+  }
+  catch (error) { 
+    console.error(error);
+    return res.status(500).json({message : "internal server error" , error : error.message});
+  }
+}
+
 module.exports = { 
     int_data ,
     category_count,
     month_count,
-    most_reg
+    most_reg,
+    recent_comp,
+    rec_reg
 };

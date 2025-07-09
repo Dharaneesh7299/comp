@@ -234,10 +234,129 @@ const deleteTeam = async (req, res) => {
   }
 };
 
+//team count , total members , active teams  ,leading
+const stdteam_data = async (req,res) =>{
+  const {id} = req.body;
+
+  if (!id){
+    return res.status(404).json({message : "provide the id"});
+  }
+
+  try {
+
+    const t_count = await prisma.team.count ({
+      where: {
+        members: {
+          some: { studentId: Number(id) }
+        }
+      }
+    });
+
+    const active_teams = await prisma.team.count ({
+      where : {
+        del_status : "ONLINE" ,
+        members : {
+          some : {
+            studentId : id
+          }
+        }
+      }
+    });
+
+    const lead_teams = await prisma.team.count ({
+      where : {
+        members : {
+          some : {
+            studentId : id,
+            role : "LEADER",
+          }
+        }
+      }
+    });
+
+    const mem_count = await prisma.teamMember.count({
+      where: {
+        team: {
+          members: {
+            some: {
+              studentId: parseInt(id),
+            },
+          },
+        },
+        studentId: {
+          not: parseInt(id),
+        },
+      },
+    });
+
+    return res.status(200).json({message : "fetched successfully" ,  data : {t_count , active_teams, lead_teams , mem_count}});
+
+  }
+  catch (error) {
+    console.error(error);
+    return res.status(500).json(({message : "internal server error" , error : error.message}));
+  }
+}
+
+//reg , short , won , total
+const dash_data = async (req,res) => {
+  const {id} = req.body;
+
+  try {
+
+    const reg_count = await prisma.team.count ({
+      where: {
+        members: {
+          some: { 
+            studentId: Number(id),
+          }
+        }
+      }
+    });
+
+    const active_teams = await prisma.team.count ({
+      where : {
+        del_status : "ONLINE" ,
+        members : {
+          some : {
+            studentId : id
+          }
+        }
+      }
+    });
+
+    const short_count = await prisma.team.count ({
+      where: {
+        status : "SHORTLISTED",
+        members: {
+          some: { studentId: Number(id) }
+        }
+      }
+    });
+
+    const won_count = await prisma.team.count ({
+      where: {
+        status : "WON",
+        members: {
+          some: { studentId: Number(id) }
+        }
+      }
+    });
+
+    return res.status(200).json({message : "fetched successfully" ,  data : {reg_count , active_teams, short_count , won_count}});
+  }
+  catch (error) {
+    console.error(error);
+    return res.status(500).json(({message : "internal server error" , error : error.message}));
+  }
+}
+
 module.exports = {
   createTeam,
   getAllTeams,
   updateTeam,
   updateTeamStatus,
-  deleteTeam
+  deleteTeam,
+  stdteam_data,
+  dash_data
 };
