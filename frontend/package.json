@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.3",
+    "axios": "^1.10.0",
+    "class-variance-authority": "^0.7.1",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.60.0",
     "react-router-dom": "^6.30.1",
     "tailwindcss-animate": "^1.0.7"
   },
