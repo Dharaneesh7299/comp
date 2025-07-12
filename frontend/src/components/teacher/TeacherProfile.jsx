@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -40,15 +39,9 @@ export default function TeacherProfile() {
             phone: data.teacher.phone || "",
             office: data.teacher.office || "",
             bio: data.teacher.bio || "",
-            specializations: data.teacher.specialization
-              ? data.teacher.specialization.split(",").map((spec) => spec.trim())
-              : [],
-            qualifications: data.teacher.qualifications
-              ? data.teacher.qualifications.split(",").map((qual) => qual.trim())
-              : [],
-            experience: data.teacher.professional_experience
-              ? data.teacher.professional_experience.split(",").map((exp) => exp.trim())
-              : [],
+            specializations: data.teacher.specialization || "", // Store as string
+            qualifications: data.teacher.qualifications || "", // Store as string
+            experience: data.teacher.professional_experience || "", // Store as string
           });
         } else {
           console.error("Failed to fetch profile data:", data.message);
@@ -68,63 +61,56 @@ export default function TeacherProfile() {
   }, [user]);
 
   const handleInputChange = (field, value) => {
+    console.log(`Input change - ${field}:`, value); // Debug raw input
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const parseMultilineOrCommaSeparated = (value) => {
-    console.log("Parsing input:", value);
-    return value
-      .split("\n")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-  };
-
-  const handleArrayChange = (field, value) => {
-    const items = parseMultilineOrCommaSeparated(value);
-    setFormData((prev) => ({ ...prev, [field]: items }));
-  };
-
-  const handleSpecializationsChange = (value) => {
-    const specializations = parseMultilineOrCommaSeparated(value);
-    setFormData((prev) => ({ ...prev, specializations }));
-  };
-
-  const handleKeyDown = (e) => {
-    console.log(`Key pressed: ${e.key}, in textarea: ${e.target.name}`);
-    if (e.key === "Enter" && !e.shiftKey) {
-      // Allow newline unless Shift+Enter (optional customization)
-      console.log("Enter key pressed in textarea");
-    }
-  };
-
-  const handleInput = (e) => {
-    console.log(`Input event in ${e.target.name}:`, e.target.value);
   };
 
   const handleSave = async () => {
     // Validate required fields
-    if (!formData.specializations.length || !formData.qualifications.length || !formData.experience.length) {
+    if (!formData.specializations || !formData.qualifications || !formData.experience) {
       alert("Please provide at least one specialization, qualification, and experience.");
       return;
     }
 
     try {
+      // Process strings into clean comma-separated strings
+      const specializations = formData.specializations
+        .split(/[\n,]+/) // Split by newlines or commas
+        .map((item) => item.trim())
+        .filter((item) => item !== "")
+        .slice(0, 10) // Limit to 10 items
+        .join(",");
+      const qualifications = formData.qualifications
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "")
+        .slice(0, 10) // Limit to 10 items
+        .join(",");
+      const experience = formData.experience
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "")
+        .slice(0, 10) // Limit to 10 items
+        .join(",");
+
+      const payload = {
+        id: formData.id,
+        name: formData.name,
+        email: formData.email,
+        institution: formData.institution,
+        department: formData.department,
+        position: formData.position,
+        phone: formData.phone,
+        office: formData.office,
+        bio: formData.bio,
+        specialization: specializations || "Provide It", // Ensure non-empty string
+        qualifications: qualifications || "Provide It", // Ensure non-empty string
+        professional_experience: experience || "Provide It", // Ensure non-empty string
+      };
+
       const response = await axios.put(
         "http://localhost:4000/api/teacher/updateteacher",
-        {
-          id: formData.id,
-          name: formData.name,
-          email: formData.email,
-          institution: formData.institution,
-          department: formData.department,
-          position: formData.position,
-          phone: formData.phone,
-          office: formData.office,
-          bio: formData.bio,
-          specialization: formData.specializations.join(","),
-          qualifications: formData.qualifications.join(","),
-          professional_experience: formData.experience.join(","),
-        }
+        payload
       );
 
       if (response.data.message === "Teacher updated successfully") {
@@ -147,6 +133,28 @@ export default function TeacherProfile() {
   const handleSubmit = (e) => {
     e.preventDefault();
     handleSave();
+  };
+
+  // Helper functions for display
+  const parseSpecializationsForDisplay = () => {
+    return formData.specializations
+      .split(/[\n,]+/) // Split by newlines or commas
+      .map((item) => item.trim())
+      .filter((item) => item !== "");
+  };
+
+  const parseQualificationsForDisplay = () => {
+    return formData.qualifications
+      .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter((item) => item !== "");
+  };
+
+  const parseExperienceForDisplay = () => {
+    return formData.experience
+      .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter((item) => item !== "");
   };
 
   // Show loading spinner while fetching data
@@ -243,6 +251,8 @@ export default function TeacherProfile() {
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoComplete="off"
+                      spellCheck="false"
                     />
                   ) : (
                     <p className="text-gray-900">{formData.name}</p>
@@ -257,6 +267,8 @@ export default function TeacherProfile() {
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoComplete="off"
+                      spellCheck="false"
                     />
                   ) : (
                     <p className="text-gray-900 flex items-center">
@@ -274,6 +286,8 @@ export default function TeacherProfile() {
                       value={formData.institution}
                       onChange={(e) => handleInputChange("institution", e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoComplete="off"
+                      spellCheck="false"
                     />
                   ) : (
                     <p className="text-gray-900 flex items-center">
@@ -291,6 +305,8 @@ export default function TeacherProfile() {
                       value={formData.department}
                       onChange={(e) => handleInputChange("department", e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoComplete="off"
+                      spellCheck="false"
                     />
                   ) : (
                     <p className="text-gray-900">{formData.department}</p>
@@ -305,6 +321,8 @@ export default function TeacherProfile() {
                       value={formData.position}
                       onChange={(e) => handleInputChange("position", e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoComplete="off"
+                      spellCheck="false"
                     />
                   ) : (
                     <p className="text-gray-900">{formData.position}</p>
@@ -319,6 +337,8 @@ export default function TeacherProfile() {
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      autoComplete="off"
+                      spellCheck="false"
                     />
                   ) : (
                     <p className="text-gray-900">{formData.phone}</p>
@@ -335,6 +355,8 @@ export default function TeacherProfile() {
                     value={formData.office}
                     onChange={(e) => handleInputChange("office", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    autoComplete="off"
+                    spellCheck="false"
                   />
                 ) : (
                   <p className="text-gray-900 flex items-center">
@@ -353,10 +375,11 @@ export default function TeacherProfile() {
                     name="bio"
                     value={formData.bio}
                     onChange={(e) => handleInputChange("bio", e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onInput={handleInput}
+                    onKeyDown={(e) => console.log("Key pressed in bio:", e.key)} // Debug keypresses
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     style={{ whiteSpace: "pre-wrap" }}
+                    autoComplete="off"
+                    spellCheck="false"
                   />
                 ) : (
                   <p className="text-gray-900">{formData.bio}</p>
@@ -373,26 +396,34 @@ export default function TeacherProfile() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Specializations</h2>
             {isEditing ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Specializations (one per line)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Specializations (comma-separated)
+                </label>
                 <textarea
                   rows={4}
                   name="specializations"
-                  value={formData.specializations.join("\n")}
-                  onChange={(e) => handleSpecializationsChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onInput={handleInput}
+                  value={formData.specializations}
+                  onChange={(e) => handleInputChange("specializations", e.target.value)}
+                  onKeyDown={(e) => console.log("Key pressed in specializations:", e.key)} // Debug keypresses
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   style={{ whiteSpace: "pre-wrap" }}
-                  placeholder="Machine Learning\nArtificial Intelligence\nData Science..."
+                  placeholder="Machine Learning, Artificial Intelligence, Data Science"
+                  autoComplete="off"
+                  spellCheck="false"
                 />
+                <p className="text-sm text-gray-500 mt-1">Separate items with commas (e.g., Machine Learning, Artificial Intelligence).</p>
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {formData.specializations.map((spec, index) => (
-                  <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                    {spec}
-                  </span>
-                ))}
+                {parseSpecializationsForDisplay().length > 0 ? (
+                  parseSpecializationsForDisplay().map((spec, index) => (
+                    <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                      {spec}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-gray-500">No specializations listed</p>
+                )}
               </div>
             )}
           </div>
@@ -402,28 +433,35 @@ export default function TeacherProfile() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Qualifications</h2>
             {isEditing ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Qualifications (one per line)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Qualifications (comma-separated)
+                </label>
                 <textarea
                   rows={4}
                   name="qualifications"
-                  value={formData.qualifications.join("\n")}
-                  onChange={(e) => handleArrayChange("qualifications", e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onInput={handleInput}
-                  data-field="qualifications"
+                  value={formData.qualifications}
+                  onChange={(e) => handleInputChange("qualifications", e.target.value)}
+                  onKeyDown={(e) => console.log("Key pressed in qualifications:", e.key)} // Debug keypresses
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   style={{ whiteSpace: "pre-wrap" }}
-                  placeholder="PhD, Computer Science\nM.Tech, AI..."
+                  placeholder="PhD, Computer Science, M.Tech, AI"
+                  autoComplete="off"
+                  spellCheck="false"
                 />
+                <p className="text-sm text-gray-500 mt-1">Separate items with commas (e.g., PhD, Computer Science, M.Tech, AI).</p>
               </div>
             ) : (
               <ul className="space-y-2">
-                {formData.qualifications.map((qualification, index) => (
-                  <li key={index} className="flex items-start space-x-2">
-                    <Award className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
-                    <span className="text-gray-700">{qualification}</span>
-                  </li>
-                ))}
+                {parseQualificationsForDisplay().length > 0 ? (
+                  parseQualificationsForDisplay().map((qualification, index) => (
+                    <li key={index} className="flex items-start space-x-2">
+                      <Award className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                      <span className="text-gray-700">{qualification}</span>
+                    </li>
+                  ))
+                ) : (
+                  <p className="text-gray-500">No qualifications listed</p>
+                )}
               </ul>
             )}
           </div>
@@ -434,28 +472,35 @@ export default function TeacherProfile() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Professional Experience</h2>
           {isEditing ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Experience (one per line)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Experience (comma-separated)
+              </label>
               <textarea
                 rows={4}
                 name="experience"
-                value={formData.experience.join("\n")}
-                onChange={(e) => handleArrayChange("experience", e.target.value)}
-                onKeyDown={handleKeyDown}
-                onInput={handleInput}
-                data-field="experience"
+                value={formData.experience}
+                onChange={(e) => handleInputChange("experience", e.target.value)}
+                onKeyDown={(e) => console.log("Key pressed in experience:", e.key)} // Debug keypresses
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 style={{ whiteSpace: "pre-wrap" }}
-                placeholder="12 years of teaching and research in CS\nPublished 15+ international papers..."
+                placeholder="12 years of teaching and research in CS, Published 15+ international papers"
+                autoComplete="off"
+                spellCheck="false"
               />
+              <p className="text-sm text-gray-500 mt-1">Separate items with commas (e.g., 12 years of teaching, Published 15+ papers).</p>
             </div>
           ) : (
             <ul className="space-y-3">
-              {formData.experience.map((exp, index) => (
-                <li key={index} className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <span className="text-gray-700">{exp}</span>
-                </li>
-              ))}
+              {parseExperienceForDisplay().length > 0 ? (
+                parseExperienceForDisplay().map((exp, index) => (
+                  <li key={index} className="flex items-start space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-gray-700">{exp}</span>
+                  </li>
+                ))
+              ) : (
+                <p className="text-gray-500">No experience listed</p>
+              )}
             </ul>
           )}
         </div>
