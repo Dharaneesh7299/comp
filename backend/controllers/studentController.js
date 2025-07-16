@@ -1,5 +1,4 @@
-const { PrismaClient } = require('../generated/prisma');
-const prisma = new PrismaClient();
+const prisma = require('../prisma')
 
 const getStudentProfile = async (req, res) => {
   const { email } = req.body;
