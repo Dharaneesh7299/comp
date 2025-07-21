@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Eye, Calendar, MapPin, Users, Trophy, ExternalLink, Star } from 'lucide-react';
+import { debounce } from 'lodash';
 import axios from 'axios';
+import pRetry from 'p-retry';
+import { Search, Plus, Edit, Trash2, Eye, Calendar, MapPin, Users, Trophy, ExternalLink, Star } from 'lucide-react';
 
 export default function ManageCompetitions() {
   const [competitions, setCompetitions] = useState([]);
@@ -13,7 +15,7 @@ export default function ManageCompetitions() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCompetition, setEditingCompetition] = useState(null);
-  const [deletingId, setDeletingId] = useState(null); // Track which competition is being deleted
+  const [deletingId, setDeletingId] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -29,49 +31,69 @@ export default function ManageCompetitions() {
     url: '',
   });
 
-  // Fetch competitions from API on component mount
-  useEffect(() => {
-    const fetchCompetitions = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get('http://localhost:4000/api/comp/get', {
-          params: { _t: Date.now() }, // Cache-busting parameter
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            Pragma: 'no-cache',
-            Expires: '0',
-          },
-        });
-        if (!response.data.g_comp) {
-          throw new Error('No competitions data received from server');
-        }
-        const fetchedCompetitions = response.data.g_comp.map((comp) => ({
-          id: comp.id,
-          title: comp.name,
-          description: comp.about,
-          category: comp.category,
-          status: comp.status,
-          startDate: comp.startdate.split('T')[0],
-          endDate: comp.enddate.split('T')[0],
-          registrationDeadline: comp.deadline.split('T')[0],
-          location: comp.location,
-          teamSize: comp.team_size,
-          prizePool: `$${comp.prize_pool.toLocaleString()}`,
-          priority: comp.priority,
-          url: comp.url || '',
-          registrationCount: comp._count?.teams || 0,
-        }));
-        setCompetitions(fetchedCompetitions);
-        console.log('Fetched competition statuses:', fetchedCompetitions.map((c) => c.status));
-      } catch (error) {
-        console.error('Error fetching competitions:', error);
-        setError(error.response?.data?.message || 'Failed to load competitions. Please try again.');
-      } finally {
-        setIsLoading(false);
+  // Fetch competitions with retry and debounce
+  const fetchCompetitions = debounce(async (signal) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await pRetry(
+        () =>
+          axios.get('http://localhost:4000/api/comp/get', {
+            signal,
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              Pragma: 'no-cache',
+              Expires: '0',
+            },
+          }),
+        { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
+      );
+      if (!response.data.g_comp) {
+        throw new Error('No competitions data received from server');
       }
+      const fetchedCompetitions = response.data.g_comp.map((comp) => ({
+        id: comp.id,
+        title: comp.name,
+        description: comp.about,
+        category: comp.category,
+        status: comp.status,
+        startDate: comp.startdate.split('T')[0],
+        endDate: comp.enddate.split('T')[0],
+        registrationDeadline: comp.deadline.split('T')[0],
+        location: comp.location,
+        teamSize: comp.team_size,
+        prizePool: `$${comp.prize_pool.toLocaleString()}`,
+        priority: comp.priority,
+        url: comp.url || '',
+        registrationCount: comp._count?.teams || 0,
+      }));
+      setCompetitions(fetchedCompetitions);
+      console.log('Fetched competitions:', fetchedCompetitions);
+    } catch (error) {
+      if (error.name === 'CanceledError') {
+        console.log('Fetch request canceled');
+        return;
+      }
+      console.error('Error fetching competitions:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      setError(
+        error.response?.data?.message || 'Failed to load competitions. Please try again later.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, 500);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchCompetitions(controller.signal);
+    return () => {
+      controller.abort();
+      fetchCompetitions.cancel();
     };
-    fetchCompetitions();
   }, []);
 
   const getRegistrationCount = (competition) => {
@@ -115,7 +137,7 @@ export default function ManageCompetitions() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
-
+    setIsLoading(true); // Show loading during form submission
     const submitData = {
       id: editingCompetition ? editingCompetition.id : undefined,
       name: formData.title,
@@ -133,8 +155,12 @@ export default function ManageCompetitions() {
     };
 
     try {
+      let response;
       if (editingCompetition) {
-        const response = await axios.put('http://localhost:4000/api/comp/update', submitData);
+        response = await pRetry(
+          () => axios.put('http://localhost:4000/api/comp/update', submitData),
+          { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
+        );
         const updatedCompetition = {
           id: response.data.update.id,
           title: response.data.update.name,
@@ -152,10 +178,13 @@ export default function ManageCompetitions() {
           registrationCount: response.data.update._count?.teams || 0,
         };
         setCompetitions((prev) =>
-          prev.map((comp) => (comp.id === updatedCompetition.id ? updatedCompetition : comp))
+          prev.map((comp) => (comp.id === updatedCompetition.id ? updatedCompetition : comp)),
         );
       } else {
-        const response = await axios.post('http://localhost:4000/api/comp/add', submitData);
+        response = await pRetry(
+          () => axios.post('http://localhost:4000/api/comp/add', submitData),
+          { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
+        );
         const newCompetition = {
           id: response.data.create_comp.id,
           title: response.data.create_comp.name,
@@ -176,8 +205,16 @@ export default function ManageCompetitions() {
       }
       resetForm();
     } catch (error) {
-      console.error(`Error ${editingCompetition ? 'updating' : 'adding'} competition:`, error);
-      setFormError(error.response?.data?.message || `Failed to ${editingCompetition ? 'update' : 'add'} competition. Please try again.`);
+      console.error(`Error ${editingCompetition ? 'updating' : 'adding'} competition:`, {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      setFormError(
+        error.response?.data?.message || `Failed to ${editingCompetition ? 'update' : 'add'} competition. Please try again.`,
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -223,9 +260,13 @@ export default function ManageCompetitions() {
 
   const handleDelete = async (competitionId) => {
     if (window.confirm('Are you sure you want to delete this competition?')) {
-      setDeletingId(competitionId); // Set loading state for specific competition
+      setDeletingId(competitionId);
+      setIsLoading(true); // Show loading during deletion
       try {
-        const response = await axios.post('http://localhost:4000/api/comp/delete', { id: competitionId });
+        const response = await pRetry(
+          () => axios.post('http://localhost:4000/api/comp/delete', { id: competitionId }),
+          { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
+        );
         if (response.data.message === 'Deleted successfully') {
           setCompetitions((prev) => prev.filter((comp) => comp.id !== competitionId));
           console.log('Competition deleted:', competitionId);
@@ -233,10 +274,15 @@ export default function ManageCompetitions() {
           throw new Error(response.data.message || 'Failed to delete competition');
         }
       } catch (error) {
-        console.error('Error deleting competition:', error);
+        console.error('Error deleting competition:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
         setError(error.response?.data?.message || 'Failed to delete competition. Please try again.');
       } finally {
-        setDeletingId(null); // Clear loading state
+        setDeletingId(null);
+        setIsLoading(false);
       }
     }
   };
@@ -269,6 +315,7 @@ export default function ManageCompetitions() {
         <button
           onClick={() => setShowAddForm(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+          disabled={isLoading}
         >
           <Plus className="h-4 w-4" />
           <span>Add Competition</span>
@@ -286,6 +333,7 @@ export default function ManageCompetitions() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading}
             />
           </div>
           <select
@@ -295,6 +343,7 @@ export default function ManageCompetitions() {
               setStatusFilter(e.target.value);
             }}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isLoading}
           >
             <option value="all">All Status</option>
             <option value="REGISTRATION_OPEN">Registration Open</option>
@@ -324,6 +373,7 @@ export default function ManageCompetitions() {
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div className="md:col-span-2">
@@ -335,6 +385,7 @@ export default function ManageCompetitions() {
                   onChange={(e) => handleInputChange('url', e.target.value)}
                   placeholder="https://example.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div className="md:col-span-2">
@@ -345,6 +396,7 @@ export default function ManageCompetitions() {
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -355,6 +407,7 @@ export default function ManageCompetitions() {
                   value={formData.category}
                   onChange={(e) => handleInputChange('category', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -364,6 +417,7 @@ export default function ManageCompetitions() {
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 >
                   <option value="REGISTRATION_OPEN">Registration Open</option>
                   <option value="UPCOMING">Upcoming</option>
@@ -379,6 +433,7 @@ export default function ManageCompetitions() {
                   value={formData.startDate}
                   onChange={(e) => handleInputChange('startDate', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -389,6 +444,7 @@ export default function ManageCompetitions() {
                   value={formData.endDate}
                   onChange={(e) => handleInputChange('endDate', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -399,6 +455,7 @@ export default function ManageCompetitions() {
                   value={formData.registrationDeadline}
                   onChange={(e) => handleInputChange('registrationDeadline', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -409,6 +466,7 @@ export default function ManageCompetitions() {
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -421,6 +479,7 @@ export default function ManageCompetitions() {
                   value={formData.teamSize}
                   onChange={(e) => handleInputChange('teamSize', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -432,6 +491,7 @@ export default function ManageCompetitions() {
                   onChange={(e) => handleInputChange('prizePool', e.target.value)}
                   placeholder="e.g., $10,000"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -441,6 +501,7 @@ export default function ManageCompetitions() {
                   value={formData.priority}
                   onChange={(e) => handleInputChange('priority', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isLoading}
                 >
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
@@ -453,14 +514,33 @@ export default function ManageCompetitions() {
                 type="button"
                 onClick={resetForm}
                 className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                disabled={isLoading}
               >
-                {editingCompetition ? 'Update Competition' : 'Add Competition'}
+                {isLoading ? (
+                  <div className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-white mr-2"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Saving...
+                  </div>
+                ) : editingCompetition ? 'Update Competition' : 'Add Competition'}
               </button>
             </div>
           </form>
@@ -488,6 +568,12 @@ export default function ManageCompetitions() {
       ) : error ? (
         <div className="text-center py-12">
           <p className="text-red-600 text-lg">{error}</p>
+          <button
+            onClick={() => fetchCompetitions(new AbortController().signal)}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <>
@@ -544,13 +630,18 @@ export default function ManageCompetitions() {
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="text-sm text-gray-600">{getRegistrationCount(competition)} registrations</div>
                   <div className="flex space-x-2">
-                    <button className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded" title="View Details">
+                    <button
+                      className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                      title="View Details"
+                      disabled={isLoading}
+                    >
                       <Eye className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleEdit(competition)}
                       className="p-1 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded"
                       title="Edit Competition"
+                      disabled={isLoading}
                     >
                       <Edit className="h-4 w-4" />
                     </button>
@@ -558,7 +649,7 @@ export default function ManageCompetitions() {
                       onClick={() => handleDelete(competition.id)}
                       className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
                       title="Delete Competition"
-                      disabled={deletingId === competition.id}
+                      disabled={deletingId === competition.id || isLoading}
                     >
                       {deletingId === competition.id ? (
                         <svg
