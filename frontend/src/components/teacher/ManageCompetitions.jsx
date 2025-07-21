@@ -264,7 +264,7 @@ export default function ManageCompetitions() {
       setIsLoading(true); // Show loading during deletion
       try {
         const response = await pRetry(
-          () => axios.post('http://localhost:4000/api/comp/delete', { id: competitionId }),
+          () => axios.delete('http://localhost:4000/api/comp/delete', {data : { id: competitionId }}),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         if (response.data.message === 'Deleted successfully') {
