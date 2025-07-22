@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import pRetry from 'p-retry';
@@ -13,7 +13,7 @@ export default function ManageStudents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterMajor, setFilterMajor] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -27,53 +27,56 @@ export default function ManageStudents() {
   });
 
   // Fetch students with retry and debounce
-  const fetchStudents = debounce(async (signal) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await pRetry(
-        () =>
-          axios.get('http://localhost:4000/api/teacher/getstudent', {
-            signal,
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              Pragma: 'no-cache',
-              Expires: '0',
-            },
-          }),
-        { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
-      );
-      if (!response.data.students) {
-        throw new Error('No students data received from server');
+  const fetchStudents = useCallback(
+    debounce(async (signal) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await pRetry(
+          () =>
+            axios.get('http://localhost:4000/api/teacher/getstudent', {
+              signal,
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                Pragma: 'no-cache',
+                Expires: '0',
+              },
+            }),
+          { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
+        );
+
+        if (!response.data.students) {
+          throw new Error('No students data received from server');
+        }
+
+        const fetchedStudents = response.data.students.map((student) => ({
+          id: student.id,
+          name: student.name,
+          email: student.email,
+          registrationNo: student.registerno,
+          year: student.year,
+          major: student.department,
+          registeredAt: student.createdAt,
+        }));
+        setStudents(fetchedStudents);
+        console.log('Fetched students:', fetchedStudents);
+      } catch (error) {
+        if (error.name === 'CanceledError') {
+          console.log('Fetch request canceled');
+          return;
+        }
+        console.error('Error fetching students:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+        setError(error.response?.data?.message || 'Failed to load students. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
-      const fetchedStudents = response.data.students.map((student) => ({
-        id: student.id,
-        name: student.name,
-        email: student.email,
-        registrationNo: student.registerno,
-        year: student.year,
-        major: student.department,
-        registeredAt: student.createdAt,
-      }));
-      setStudents(fetchedStudents);
-      console.log('Fetched students:', fetchedStudents);
-    } catch (error) {
-      if (error.name === 'CanceledError') {
-        console.log('Fetch request canceled');
-        return;
-      }
-      console.error('Error fetching students:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-      setError(
-        error.response?.data?.message || 'Failed to load students. Please try again later.',
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, 500);
+    }, 500),
+    []
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,7 +85,7 @@ export default function ManageStudents() {
       controller.abort();
       fetchStudents.cancel();
     };
-  }, []);
+  }, [fetchStudents]);
 
   const resetForm = () => {
     setFormData({
@@ -100,7 +103,14 @@ export default function ManageStudents() {
   const handleAddStudent = () => {
     setShowAddForm(true);
     setEditingStudent(null);
-    resetForm();
+    setFormData({
+      name: '',
+      email: '',
+      registrationNo: '',
+      year: '',
+      major: '',
+    });
+    setFormError(null);
   };
 
   const handleEditStudent = (student) => {
@@ -151,9 +161,7 @@ export default function ManageStudents() {
           registeredAt: response.data.student.createdAt,
         };
         setStudents((prev) =>
-          prev.map((student) =>
-            student.id === updatedStudent.id ? updatedStudent : student,
-          ),
+          prev.map((student) => (student.id === updatedStudent.id ? updatedStudent : student))
         );
       } else {
         response = await pRetry(
@@ -179,7 +187,7 @@ export default function ManageStudents() {
         data: error.response?.data,
       });
       setFormError(
-        error.response?.data?.message || `Failed to ${editingStudent ? 'update' : 'add'} student. Please try again.`,
+        error.response?.data?.message || `Failed to ${editingStudent ? 'update' : 'add'} student. Please try again.`
       );
     } finally {
       setIsLoading(false);
@@ -192,7 +200,7 @@ export default function ManageStudents() {
       setIsLoading(true);
       try {
         const response = await pRetry(
-          () => axios.delete('http://localhost:4000/api/teacher/deletestudent', {data : { id: studentId }}),
+          () => axios.delete('http://localhost:4000/api/teacher/deletestudent', { data: { id: studentId } }),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         if (response.data.message === 'Student deleted successfully') {
@@ -240,7 +248,7 @@ export default function ManageStudents() {
   const uniqueMajors = [...new Set(students.map((s) => s.major))].sort();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -311,122 +319,124 @@ export default function ManageStudents() {
 
       {/* Add/Edit Student Form */}
       {showAddForm && (
-        <div className="bg-white rounded-lg shadow-md border p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {editingStudent ? 'Edit Student' : 'Add New Student'}
-            </h2>
-            <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          {formError && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{formError}</div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter student's full name"
-                required
-                disabled={isLoading}
-              />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-md border p-6 w-full max-w-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingStudent ? 'Edit Student' : 'Add New Student'}
+              </h2>
+              <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="student@university.edu"
-                required
-                disabled={isLoading}
-              />
+            {formError && (
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{formError}</div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter student's full name"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="student@university.edu"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Registration Number *</label>
+                <input
+                  type="text"
+                  value={formData.registrationNo}
+                  onChange={(e) => handleInputChange('registrationNo', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                  placeholder="CS2021001"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+                <select
+                  value={formData.year}
+                  onChange={(e) => handleInputChange('year', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  disabled={isLoading}
+                >
+                  <option value="">Select Year</option>
+                  <option value="first_Year">1st Year</option>
+                  <option value="second_Year">2nd Year</option>
+                  <option value="third_Year">3rd Year</option>
+                  <option value="fourth_Year">4th Year</option>
+                  <option value="Graduate">Graduate</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Major/Field of Study *</label>
+                <input
+                  type="text"
+                  value={formData.major}
+                  onChange={(e) => handleInputChange('major', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Computer Science"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Registration Number *</label>
-              <input
-                type="text"
-                value={formData.registrationNo}
-                onChange={(e) => handleInputChange('registrationNo', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                placeholder="CS2021001"
-                required
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
-              <select
-                value={formData.year}
-                onChange={(e) => handleInputChange('year', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleCancel}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
                 disabled={isLoading}
               >
-                <option value="">Select Year</option>
-                <option value="first_Year">1st Year</option>
-                <option value="second_Year">2nd Year</option>
-                <option value="third_Year">3rd Year</option>
-                <option value="fourth_Year">4th Year</option>
-                <option value="Graduate">Graduate</option>
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Major/Field of Study *</label>
-              <input
-                type="text"
-                value={formData.major}
-                onChange={(e) => handleInputChange('major', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Computer Science"
-                required
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveStudent}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
                 disabled={isLoading}
-              />
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-white mr-2"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Saving...
+                  </div>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>{editingStudent ? 'Update Student' : 'Add Student'}</span>
+                  </>
+                )}
+              </button>
             </div>
-          </div>
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveStudent}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <svg
-                    className="animate-spin h-5 w-5 text-white mr-2"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Saving...
-                </div>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  <span>{editingStudent ? 'Update Student' : 'Add Student'}</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
       )}
@@ -440,12 +450,12 @@ export default function ManageStudents() {
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path
               className="opacity-75"
               fill="currentColor"
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
+            />
           </svg>
           <span className="ml-3 text-gray-700">Loading...</span>
         </div>
@@ -553,12 +563,12 @@ export default function ManageStudents() {
                               fill="none"
                               viewBox="0 0 24 24"
                             >
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path
                                 className="opacity-75"
                                 fill="currentColor"
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
+                              />
                             </svg>
                           ) : (
                             <>
