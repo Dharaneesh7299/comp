@@ -3,48 +3,66 @@ const prisma = require('../prisma')
 
 //getting the initail count data
 const int_data = async (req, res) => {
+  try {
+    console.log('Fetching analytics data...');
 
-    try {
-        const [
-            comp_count,
-            std_count,
-            reg_count,
-            act_comp,
-            shortlisted_cnt,
-            won_cnt,
-            registered_cnt,
-            rejected_cnt
-        ] = await Promise.all([
-            prisma.competition.count(),
-            prisma.student.count(),
-            prisma.team.count(),
-            prisma.competition.count({ where: { status: "ONGOING" } }),
-            prisma.team.count({ where: { status: "SHORTLISTED" } }),
-            prisma.team.count({ where: { status: "WON" } }),
-            prisma.team.count({ where: { status: "REGISTERED" } }),
-            prisma.team.count({ where: { status: "REJECTED" } })
-        ]);
+    const comp_count = await prisma.competition.count();
+    const std_count = await prisma.student.count();
+    const reg_count = await prisma.team.count();
+    const act_comp = await prisma.competition.count({ where: { status: 'ONGOING' } });
 
-        return res.status(200).json({
-            message: "fetched successfully",
-            data: {
-                comp_count,
-                std_count,
-                act_comp,
-                reg_count,
-                shortlisted_cnt,
-                won_cnt,
-                registered_cnt,
-                rejected_cnt
-            }
-        });
+    const shortlisted_cnt = await prisma.team.count({
+      where: { status: 'SHORTLISTED' },
+    }).catch((err) => {
+      console.error('Error counting SHORTLISTED teams:', err);
+      throw new Error('Failed to count SHORTLISTED teams');
+    });
 
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: "internal server error", error: error.message });
-    }
+    const won_cnt = await prisma.team.count({
+      where: { status: 'WON' },
+    }).catch((err) => {
+      console.error('Error counting WON teams:', err);
+      throw new Error('Failed to count WON teams');
+    });
+
+    const registered_cnt = await prisma.team.count({
+      where: { status: 'REGISTERED' },
+    }).catch((err) => {
+      console.error('Error counting REGISTERED teams:', err);
+      throw new Error('Failed to count REGISTERED teams');
+    });
+
+    const rejected_cnt = await prisma.team.count({
+      where: { status: 'REJECTED' },
+    }).catch((err) => {
+      console.error('Error counting REJECTED teams:', err);
+      throw new Error('Failed to count REJECTED teams');
+    });
+
+    return res.status(200).json({
+      message: 'fetched successfully',
+      data: {
+        comp_count,
+        std_count,
+        act_comp,
+        reg_count,
+        shortlisted_cnt,
+        won_cnt,
+        registered_cnt,
+        rejected_cnt,
+      },
+    });
+  } catch (error) {
+    console.error('Error in int_data:', {
+      message: error.message,
+      stack: error.stack,
+    });
+    return res.status(500).json({
+      message: 'internal server error',
+      error: error.message,
+    });
+  }
 };
-
 
 //fetching the each ctaegory registered with the count
 const category_count = async (req,res) => {
