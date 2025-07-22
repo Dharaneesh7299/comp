@@ -17,84 +17,84 @@ model Hod {
 model Teacher {
   id                      Int      @id @default(autoincrement())
   name                    String
-  email                   String   @unique
   password                String
-  institution             String
-  department              Dept
-  position                Position
-  phone                   String   @unique
-  office                  String
-  bio                     String
-  specialization          String
-  qualifications          String
-  professional_experience String
   created_at              DateTime @default(now())
+  email                   String   @unique
+  bio                     String
+  department              Dept
+  institution             String
+  office                  String
+  phone                   String   @unique
+  position                Position
+  professional_experience String
+  qualifications          String
+  specialization          String
 }
 
 model Student {
-  id               Int            @id @default(autoincrement())
-  name             String
-  email            String          @unique
-  registerno       String          @unique
-  department       Dept
-  year             Year
-  Address          String           @default("Provide It")
-  phone            String           @default("Provide It")
-  bio              String           @default("Provide It")
-  skills           String           @default("Provide It")
-  Achivements      String           @default("Provide It")
-  teams            TeamMember[]
-  createdAt        DateTime        @default(now())
+  id          Int          @id @default(autoincrement())
+  name        String
+  email       String       @unique
+  createdAt   DateTime     @default(now())
+  department  Dept
+  registerno  String       @unique
+  year        Year
+  Achivements String       @default("Provide It")
+  Address     String       @default("Provide It")
+  bio         String       @default("Provide It")
+  phone       String       @default("Provide It")
+  skills      String       @default("Provide It")
+  teams       TeamMember[]
 }
 
 model Team {
-  id                Int          @id @default(autoincrement())
-  name              String
-  competition       Competition  @relation(fields: [competitionId], references: [id])
-  competitionId     Int
-  status            Tstatus      @default(REGISTERED)
-  del_status        Delstatus    @default(ONLINE)
-  members           TeamMember[]
-  motive            String
-  experience_level  Experience   @default(BEGINNER)
-  certifacte        String?
-  createdAt         DateTime     @default(now())
+  id               Int          @id @default(autoincrement())
+  name             String
+  competitionId    Int
+  createdAt        DateTime     @default(now())
+  certifacte       String?
+  experience_level Experience   @default(BEGINNER)
+  motive           String
+  status           Tstatus      @default(REGISTERED)
+  del_status       Delstatus    @default(ONLINE)
+  competition      Competition  @relation(fields: [competitionId], references: [id])
+  members          TeamMember[]
 }
 
 model TeamMember {
   id        Int     @id @default(autoincrement())
-  student   Student @relation(fields: [studentId], references: [id])
   studentId Int
-  role      Role
-  team      Team    @relation(fields: [teamId], references: [id])
   teamId    Int
+  role      Role
+  student   Student @relation(fields: [studentId], references: [id])
+  team      Team    @relation(fields: [teamId], references: [id])
 
   @@unique([studentId, teamId])
 }
 
 model Competition {
-  id          Int         @id @default(autoincrement())
-  name        String
-  url         String
-  about       String
-  category    String
-  status      Status
-  startdate   DateTime
-  enddate     DateTime
-  deadline    DateTime
-  location    String
-  team_size   Int
-  prize_pool  Int
-  priority    Priority
-  teams       Team[]
-  createdAt   DateTime    @default(now())
+  id         Int      @id @default(autoincrement())
+  name       String
+  url        String
+  about      String
+  deadline   DateTime
+  createdAt  DateTime @default(now())
+  category   String
+  enddate    DateTime
+  location   String
+  priority   Priority
+  prize_pool Int
+  startdate  DateTime
+  status     Status
+  team_size  Int
+  teams      Team[]
 }
 
 enum Role {
   LEADER
   DEVELOPER
 }
- 
+
 enum Dept {
   IT
   CSE
