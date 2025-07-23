@@ -3,12 +3,32 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { TrendingUp, Users, Trophy, Calendar, Download } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Dynamically import Chart.js to ensure client-side rendering
+const Chart = dynamic(() => import("react-chartjs-2").then((mod) => mod.Chart), {
+  ssr: false,
+});
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+// Register Chart.js components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function CompetitionAnalytics() {
   const [selectedPeriod, setSelectedPeriod] = useState("all");
   const [analyticsData, setAnalyticsData] = useState(null);
   const [categoryBreakdown, setCategoryBreakdown] = useState({});
   const [registrationTrends, setRegistrationTrends] = useState([]);
+  const [comp_month, setCompCount] = useState(0);
+  const [std_count, setStudentCount] = useState(0);
   const [competitionPerformance, setCompetitionPerformance] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,6 +61,13 @@ export default function CompetitionAnalytics() {
         // Fetch registration trends
         const trendsResponse = await axios.get("http://localhost:4000/api/analytics/month");
         setRegistrationTrends(trendsResponse.data.data);
+
+        // Fetch monthly competition and student counts
+        const stdcount = await axios.get("http://localhost:4000/api/analytics/std");
+        setStudentCount(stdcount.data.data);
+
+        const compcount = await axios.get("http://localhost:4000/api/analytics/comp");
+        setCompCount(compcount.data.data);
 
         // Fetch top competitions
         const mostResponse = await axios.get("http://localhost:4000/api/analytics/most");
@@ -103,6 +130,53 @@ export default function CompetitionAnalytics() {
     a.download = "competition-analytics.json";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Chart.js data for Registration Trends
+  const chartData = {
+    labels: registrationTrends.map((data) => data.month),
+    datasets: [
+      {
+        label: "Registrations",
+        data: registrationTrends.map((data) => data.count),
+        backgroundColor: "rgba(59, 130, 246, 0.5)", // bg-blue-500 with opacity
+        borderColor: "rgba(59, 130, 246, 1)", // bg-blue-500
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false, // Hide legend as it's clear from context
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => `${context.parsed.y} registrations in ${context.label}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: "Month",
+        },
+      },
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: "Number of Registrations",
+        },
+        ticks: {
+          stepSize: 1, // Ensure integer ticks
+        },
+      },
+    },
   };
 
   return (
@@ -177,7 +251,7 @@ export default function CompetitionAnalytics() {
                 <Trophy className="h-8 w-8 text-blue-600" />
               </div>
               <div className="mt-2">
-                <span className="text-sm text-green-600">+2 this month</span>
+                <span className="text-sm text-green-600">{`+${comp_month || 0} this month`}</span>
               </div>
             </div>
 
@@ -190,7 +264,7 @@ export default function CompetitionAnalytics() {
                 <Users className="h-8 w-8 text-green-600" />
               </div>
               <div className="mt-2">
-                <span className="text-sm text-green-600">+5 this month</span>
+                <span className="text-sm text-green-600">{`+${std_count || 0} this month`}</span>
               </div>
             </div>
 
@@ -203,7 +277,11 @@ export default function CompetitionAnalytics() {
                 <Calendar className="h-8 w-8 text-yellow-600" />
               </div>
               <div className="mt-2">
-                <span className="text-sm text-green-600">+8 this week</span>
+                <span className="text-sm text-green-600">
+                  {registrationTrends.length > 0
+                    ? `+${registrationTrends[registrationTrends.length - 1].count} this month`
+                    : "+0 this month"}
+                </span>
               </div>
             </div>
 
@@ -288,22 +366,18 @@ export default function CompetitionAnalytics() {
           {/* Registration Trends */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Registration Trends</h2>
-            <div className="h-64 flex items-end justify-between space-x-2">
-              {registrationTrends.map((data, index) => {
-                const maxRegistrations = Math.max(...registrationTrends.map((t) => t.count), 1);
-                const height = (data.count / maxRegistrations) * 100;
-                return (
-                  <div key={index} className="flex flex-col items-center flex-1">
-                    <div
-                      className="bg-blue-500 rounded-t w-full transition-all duration-300 hover:bg-blue-600"
-                      style={{ height: `${height}%`, minHeight: "20px" }}
-                      title={`${data.count} registrations`}
-                    ></div>
-                    <span className="text-sm text-gray-600 mt-2">{data.month}</span>
-                    <span className="text-xs text-gray-500">{data.count}</span>
-                  </div>
-                );
-              })}
+            <div className="h-80">
+              {registrationTrends.length > 0 ? (
+                <Chart
+                  type="bar"
+                  data={chartData}
+                  options={chartOptions}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full w-full text-gray-500">
+                  No registration data available
+                </div>
+              )}
             </div>
           </div>
 
@@ -327,7 +401,6 @@ export default function CompetitionAnalytics() {
                       <td className="py-4 px-4">
                         <div>
                           <p className="font-medium text-gray-900">{competition.title}</p>
-                          {/* Location not available in most_reg; add if needed */}
                           <p className="text-sm text-gray-600">N/A</p>
                         </div>
                       </td>

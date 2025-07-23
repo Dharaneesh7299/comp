@@ -13,7 +13,7 @@ export default function ManageStudents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterYear, setFilterYear] = useState('');
   const [filterMajor, setFilterMajor] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [formError, setFormError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -247,6 +247,8 @@ export default function ManageStudents() {
   const uniqueYears = [...new Set(students.map((s) => s.year))].sort();
   const uniqueMajors = [...new Set(students.map((s) => s.major))].sort();
 
+  const departmentOptions = ['IT', 'CSE', 'AIDS', 'AIML', 'ECE', 'EEE', 'MECH'];
+
   return (
     <div className="space-y-6 p-4">
       {/* Header */}
@@ -387,16 +389,21 @@ export default function ManageStudents() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Major/Field of Study *</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
+                <select
                   value={formData.major}
                   onChange={(e) => handleInputChange('major', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Computer Science"
                   required
                   disabled={isLoading}
-                />
+                >
+                  <option value="">Select Department</option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex justify-end space-x-3">
