@@ -92,43 +92,89 @@ const category_count = async (req,res) => {
 }
 
 // month wise registration use raw query used chat gpt
+const month_count = async (req, res) => {
+  try {
+    const registrationsByMonth = await prisma.$queryRaw`
+      WITH months AS (
+        SELECT 
+          to_char(
+            date_trunc('month', CURRENT_DATE - (interval '1 month' * generate_series(0, 5))),
+            'Mon'
+          ) AS month,
+          date_trunc('month', CURRENT_DATE - (interval '1 month' * generate_series(0, 5))) AS month_start
+      ),
+      registrations AS (
+        SELECT 
+          date_trunc('month', "createdAt") AS month_start,
+          COUNT(*) AS count
+        FROM "Team"
+        WHERE "createdAt" >= CURRENT_DATE - INTERVAL '6 months'
+        GROUP BY month_start
+      )
+      SELECT 
+        m.month,
+        COALESCE(r.count, 0)::int AS count
+      FROM months m
+      LEFT JOIN registrations r ON m.month_start = r.month_start
+      ORDER BY m.month_start ASC;
+    `;
 
-const month_count = async (req,res) => {
+    return res.status(200).json({
+      message: "fetched successfully",
+      data: registrationsByMonth,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "internal server error",
+      error: error.message,
+    });
+  }
+};
 
+
+//no of comp added this month
+const comp_count = async (req,res)=>{
     try {
 
-        const registrationsByMonth = await prisma.$queryRaw`
-            WITH months AS (
-                SELECT to_char(date_trunc('month', CURRENT_DATE) - (interval '1 month' * generate_series(0, 5)), 'Mon') AS month,
-                    EXTRACT(MONTH FROM date_trunc('month', CURRENT_DATE) - (interval '1 month' * generate_series(0, 5))) AS month_num,
-                    date_trunc('month', CURRENT_DATE) - (interval '1 month' * generate_series(0, 5)) AS month_start
-            ),
-            registrations AS (
-                SELECT 
-                date_trunc('month', "createdAt") AS month_start,
-                COUNT(*) AS count
-                FROM "Team"
-                WHERE status = 'REGISTERED' AND "createdAt" >= CURRENT_DATE - INTERVAL '6 months'
-                GROUP BY month_start
-            )
-            SELECT 
-                m.month,
-                m.month_num,
-                COALESCE(r.count, 0)::int AS count
-            FROM months m
-            LEFT JOIN registrations r ON m.month_start = r.month_start
-            ORDER BY m.month_start;
-            `;
-        
-        return res.status(200).json({message : "fetched successfully" , data : registrationsByMonth})
+        const currentMonthCompetitions = await prisma.$queryRaw`
+        SELECT 
+          COUNT(*)::int AS count
+        FROM "Competition"
+        WHERE "createdAt" >= date_trunc('month', CURRENT_DATE)
+          AND "createdAt" < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month';
+      `;
+
+      const count = currentMonthCompetitions[0]?.count || 0;
+
+      return res.status(200).json({ message: "fetched successfully", data: count});
     }
-    
+    catch (error){
+        console.error(error);
+        return res.status(500).json({message : "internal server error" , error : error.message})
+    }
+}
+
+//student count this month
+const std_count = async(req,res)=>{
+    try {
+        const currentstudentregistrations = await prisma.$queryRaw`
+        SELECT 
+          COUNT(*)::int AS count
+        FROM "Student"
+        WHERE "createdAt" >= date_trunc('month', CURRENT_DATE)
+          AND "createdAt" < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month';
+        `;
+
+        const count = currentstudentregistrations[0]?.count || 0;
+
+        return res.status(200).json({ message: "fetched successfully", data: count});
+    }
     catch (error) {
         console.error(error);
-        return res.status(500).json({message : "internal server error" , error : error.message});
+        return res.status(500).jaon({message : "internal server error" , error : error.message});
     }
-
-};
+}
 
 //selecting the most registered comp
 const most_reg = async (req,res) => {
@@ -165,40 +211,68 @@ const most_reg = async (req,res) => {
 }
 
 //dahsboard recent competitons
-const recent_comp = async (req,res)=>{
-    try {
-        const rec_comp = await prisma.competition.findMany({
-            where : {
-                NOT : {
-                    status : "COMPLETED"
-                }
-            },
-            select : {
-                id : true,
-                name : true,
-                url : true,
-                about : true,
-                category : true,
-                status : true,
-                startdate : true,
-                enddate : true,
-                deadline : true,
-                location : true,
-                team_size : true,
-                prize_pool : true,
-                priority : true,
-            },
-            orderBy : {createdAt : 'desc'},
-            take : 3,
-        });
+const recent_comp = async (req, res) => {
+  try {
+    const rec_comp = await prisma.competition.findMany({
+      where: {
+        NOT: {
+          status: "COMPLETED",
+        },
+      },
+      include: {
+        _count: {
+          select: { teams: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    })
 
-        return res.status(200).json({message : "fetched successfully" , data : rec_comp});
-    }
+    const competitionsWithStats = await Promise.all(
+      rec_comp.map(async (comp) => {
+        const s_cnt = await prisma.team.count({
+          where: {
+            competitionId: comp.id,
+            status: "SHORTLISTED",
+          },
+        }).catch((err) => {
+          console.error(`Error counting SHORTLISTED teams for competition ${comp.id}:`, err)
+          return 0 
+        })
 
-    catch (error) {
-        console.error(error);
-        return res.status(500).json({message : "internal server error" , error : error.message});
-    }
+        const w_cnt = await prisma.team.count({
+          where: {
+            competitionId: comp.id,
+            status: "WON",
+          },
+        }).catch((err) => {
+          console.error(`Error counting WON teams for competition ${comp.id}:`, err)
+          return 0 
+        })
+
+        return {
+          ...comp,
+          stats: {
+            total: comp._count.teams,
+            shortlisted: s_cnt,
+            won: w_cnt,
+          },
+          _count: undefined, // Remove _count from response to clean up
+        }
+      })
+    )
+
+    return res.status(200).json({
+      message: "fetched successfully",
+      data: competitionsWithStats,
+    })
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({
+      message: "internal server error",
+      error: error.message,
+    })
+  }
 }
 
 //recent team registrations
@@ -237,5 +311,7 @@ module.exports = {
     month_count,
     most_reg,
     recent_comp,
+    comp_count,
+    std_count,
     rec_reg
 };
