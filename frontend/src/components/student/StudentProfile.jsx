@@ -38,23 +38,25 @@ export default function StudentProfile() {
     phone: "",
     address: "",
     bio: "",
-    skills: "", // Store as string
-    achievements: "", // Store as string
+    skills: "",
+    achievements: "",
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isFetched, setIsFetched] = useState(false); // New state to track if profile is fetched
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!user?.email || isFetched) return; // Skip if no email or already fetched
+
       console.log("Loading started");
       setLoading(true);
       try {
         const response = await axios.post("http://localhost:4000/api/student/getprofile", {
           email: user.email,
         });
-        console.log("API Response:", response.data); // Debug API response
+        console.log("API Response:", response.data);
         if (response.data.student) {
-          // Normalize skills and achievements as strings
           const studentData = {
             ...response.data.student,
             registrationNo: response.data.student.registerno || "",
@@ -76,6 +78,7 @@ export default function StudentProfile() {
                 : "",
           };
           setFormData(studentData);
+          setIsFetched(true); // Mark as fetched
         } else {
           setError("Student not found");
         }
@@ -86,17 +89,17 @@ export default function StudentProfile() {
         setLoading(false);
       }
     };
-    if (user?.email) fetchProfile();
-  }, [user]);
+
+    fetchProfile();
+  }, [user?.email, isFetched]); // Depend on user.email and isFetched
 
   const handleInputChange = (field, value) => {
-    console.log(`Input change - ${field}:`, value); // Debug raw input
+    console.log(`Input change - ${field}:`, value);
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
     try {
-      // Process skills and achievements into clean comma-separated strings
       const skills = formData.skills
         .split(",")
         .map((skill) => skill.trim())
@@ -108,14 +111,13 @@ export default function StudentProfile() {
         .filter((achievement) => achievement !== "")
         .join(", ");
 
-      // Map formData fields back to API-expected keys
       const payload = {
         ...formData,
         registerno: formData.registrationNo,
         department: formData.major,
         Address: formData.address,
-        skills: skills || "Provide It", // Ensure non-empty string for backend
-        Achivements: achievements || "Provide It", // Ensure non-empty string for backend
+        skills: skills || "Provide It",
+        Achivements: achievements || "Provide It",
       };
       const response = await axios.put("http://localhost:4000/api/student/updateprofile", payload, {
         headers: { "Content-Type": "application/json" },
@@ -123,6 +125,7 @@ export default function StudentProfile() {
       if (response.data.message === "Profile updated successfully") {
         alert("Profile updated successfully!");
         setIsEditing(false);
+        setIsFetched(true); // Ensure fetched state remains true after save
       } else {
         setError("Update failed");
       }
@@ -135,7 +138,6 @@ export default function StudentProfile() {
     setIsEditing(false);
   };
 
-  // Helper function to parse skills for display
   const parseSkillsForDisplay = () => {
     return formData.skills
       .split(",")
@@ -143,7 +145,6 @@ export default function StudentProfile() {
       .filter((skill) => skill !== "");
   };
 
-  // Helper function to parse achievements for display
   const parseAchievementsForDisplay = () => {
     return formData.achievements
       .split(",")
@@ -406,7 +407,9 @@ export default function StudentProfile() {
                       key={index}
                       className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
                     >
-                      {skill}
+                      {
+
+skill}
                     </span>
                   ))
                 ) : (
