@@ -152,6 +152,8 @@ const get_comp = async (req, res) => {
   }
 };
 
+
+
 module.exports = {
   add_comp,
   update_comp,
