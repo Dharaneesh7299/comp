@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Users, Calendar, MapPin, Trophy, Mail, Phone, User, Crown, Star, Edit, Trash2 } from "lucide-react";
+import { Users, Calendar, MapPin, Trophy, Mail, Phone, User, Crown, Star, Edit, Trash2, Clipboard } from "lucide-react";
 import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -27,6 +27,8 @@ export default function StudentTeams() {
     totalMembers: 0,
   });
   const [isFetched, setIsFetched] = useState(false);
+  const [showPhoneNumber, setShowPhoneNumber] = useState({});
+  const [copiedPhone, setCopiedPhone] = useState({});
 
   // Fetch studentId, teams, and stats
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function StudentTeams() {
         const fetchedStudentId = profileResponse.data.student.id;
         setStudentId(fetchedStudentId);
 
-        // Fetch teams with competition details
+        // Fetch teams with competition and member details
         const teamsResponse = await axios.post("http://localhost:4000/api/team/get", {
           studentId: fetchedStudentId,
         });
@@ -54,9 +56,14 @@ export default function StudentTeams() {
           name: team.name,
           competition: team.competition.name,
           competitionId: team.competitionId,
-          members: team.members.map((m) => m.student.registerno),
+          members: team.members.map((m) => ({
+            registerno: m.student.registerno,
+            email: m.student.email || null,
+            phone: m.student.phone || null,
+          })),
           role: team.members.find((m) => m.studentId === fetchedStudentId)?.role || "DEVELOPER",
-          status: team.del_status === "OFFLINE" ? "inactive" : team.status.toLowerCase(),
+          status: team.status.toLowerCase(),
+          del_status: team.del_status,
           createdDate: new Date(team.createdAt).toISOString().split("T")[0],
           description: team.motive,
           competitionDetails: {
@@ -136,9 +143,14 @@ export default function StudentTeams() {
                 name: response.data.team.name,
                 competition: competitions.find((c) => c.id === Number(formData.competition))?.title || team.competition,
                 competitionId: response.data.team.competitionId,
-                members: response.data.team.members.map((m) => m.student.registerno),
+                members: response.data.team.members.map((m) => ({
+                  registerno: m.student.registerno,
+                  email: m.student.email || null,
+                  phone: m.student.phone || null,
+                })),
                 description: response.data.team.motive,
-                status: response.data.team.del_status === "OFFLINE" ? "inactive" : response.data.team.status.toLowerCase(),
+                status: response.data.team.status.toLowerCase(),
+                del_status: response.data.team.del_status,
                 competitionDetails: {
                   id: response.data.team.competition.id,
                   title: response.data.team.competition.name,
@@ -185,7 +197,7 @@ export default function StudentTeams() {
     setFormData({
       name: team.name,
       competition: team.competitionId,
-      members: team.members,
+      members: team.members.map((m) => m.registerno),
       description: team.description || "",
     });
   };
@@ -218,16 +230,45 @@ export default function StudentTeams() {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const handleTogglePhone = (teamId, memberIndex) => {
+    setShowPhoneNumber((prev) => ({
+      ...prev,
+      [`${teamId}-${memberIndex}`]: !prev[`${teamId}-${memberIndex}`],
+    }));
+    setCopiedPhone((prev) => ({ ...prev, [`${teamId}-${memberIndex}`]: false }));
+  };
+
+  const handleCopyPhone = (phone, teamId, memberIndex) => {
+    if (phone && phone !== "Provide It") {
+      navigator.clipboard.writeText(phone);
+      setCopiedPhone((prev) => ({ ...prev, [`${teamId}-${memberIndex}`]: true }));
+      setTimeout(() => {
+        setCopiedPhone((prev) => ({ ...prev, [`${teamId}-${memberIndex}`]: false }));
+      }, 2000);
+    }
+  };
+
+  const getStatusBadge = (del_status) => {
     const statusConfig = {
-      active: { bg: "bg-green-100", text: "text-green-800", label: "Active" },
+      ONLINE: { bg: "bg-green-100", text: "text-green-800", label: "Active" },
+      OFFLINE: { bg: "bg-gray-100", text: "text-gray-800", label: "Inactive" },
+    };
+    const config = statusConfig[del_status] || statusConfig["ONLINE"];
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        {config.label}
+      </span>
+    );
+  };
+
+  const getRegistrationStatusBadge = (status) => {
+    const statusConfig = {
+      registered: { bg: "bg-blue-100", text: "text-blue-800", label: "Registered" },
       shortlisted: { bg: "bg-yellow-100", text: "text-yellow-800", label: "Shortlisted" },
       won: { bg: "bg-green-100", text: "text-green-800", label: "Won" },
       rejected: { bg: "bg-red-100", text: "text-red-800", label: "Rejected" },
-      registered: { bg: "bg-blue-100", text: "text-blue-800", label: "Registered" },
-      inactive: { bg: "bg-gray-100", text: "text-gray-800", label: "Inactive" },
     };
-    const config = statusConfig[status] || statusConfig["active"];
+    const config = statusConfig[status] || statusConfig["registered"];
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
         {status === "won" && <Trophy className="h-3 w-3 mr-1" />}
@@ -387,7 +428,7 @@ export default function StudentTeams() {
                 {team.description && <p className="text-sm text-gray-500 mt-1">{team.description}</p>}
               </div>
               <div className="flex items-center space-x-2">
-                {getStatusBadge(team.status)}
+                {getStatusBadge(team.del_status)}
                 <div className="flex space-x-1">
                   <button
                     onClick={() => handleEdit(team)}
@@ -434,7 +475,7 @@ export default function StudentTeams() {
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">Registration Status:</span>
-                    {getStatusBadge(team.status)}
+                    {getRegistrationStatusBadge(team.status)}
                   </div>
                 </div>
               </div>
@@ -451,7 +492,29 @@ export default function StudentTeams() {
                         <User className="h-4 w-4 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{member}</p>
+                        <p className="font-medium text-gray-900">{member.registerno}</p>
+                        <p className="text-xs text-gray-600">{member.email || "Not found"}</p>
+                        {showPhoneNumber[`${team.id}-${index}`] && (
+                          <p className="text-xs text-gray-600">
+                            {member.phone || "Not found"}
+                            {member.phone && member.phone !== "Provide It" && (
+                              <button
+                                onClick={() => handleCopyPhone(member.phone, team.id, index)}
+                                className="ml-2 p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                title="Copy Phone Number"
+                              >
+                                {copiedPhone[`${team.id}-${index}`] ? (
+                                  <span className="text-xs text-green-600">Copied!</span>
+                                ) : (
+                                  <Clipboard className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            {member.phone === "Provide It" && (
+                              <span className="ml-2 text-xs text-red-600">Invalid</span>
+                            )}
+                          </p>
+                        )}
                         {index === 0 && team.role === "LEADER" && (
                           <p className="text-xs text-yellow-600 flex items-center">
                             <Crown className="h-3 w-3 mr-1" />
@@ -461,15 +524,18 @@ export default function StudentTeams() {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <button
-                        className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
-                        title="Send Message"
+                      <a
+                        href={member.email ? `mailto:${member.email}?subject=Team Collaboration` : "#"}
+                        className={`p-1 ${member.email ? "text-gray-600 hover:text-blue-600 hover:bg-blue-50" : "text-gray-400 cursor-not-allowed"} rounded`}
+                        title={member.email ? "Send Email" : "Email Not Available"}
+                        onClick={(e) => !member.email && e.preventDefault()}
                       >
                         <Mail className="h-4 w-4" />
-                      </button>
+                      </a>
                       <button
+                        onClick={() => handleTogglePhone(team.id, index)}
                         className="p-1 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded"
-                        title="Call"
+                        title="Show/Hide Phone Number"
                       >
                         <Phone className="h-4 w-4" />
                       </button>

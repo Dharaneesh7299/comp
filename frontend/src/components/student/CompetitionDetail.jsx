@@ -1,25 +1,202 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams, Link } from "react-router-dom"
-import { ArrowLeft, Calendar, Users, MapPin, Clock, Trophy, Star, CheckCircle, ExternalLink } from "lucide-react"
-import { mockData } from "../../lib/mockData"
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { ArrowLeft, Calendar, Users, MapPin, Clock, Trophy, Star, CheckCircle, ExternalLink } from "lucide-react";
+import axios from "axios";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function CompetitionDetail() {
-  const { id } = useParams()
-  const competition = mockData.competitions.find((c) => c.id === Number.parseInt(id))
-
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false)
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [competition, setCompetition] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [formData, setFormData] = useState({
     teamName: "",
     teamMembers: [""],
-    contactEmail: "",
-    phoneNumber: "",
-    institution: "",
     experience: "",
     motivation: "",
-  })
+  });
+
+  // Fetch competition details
+  useEffect(() => {
+    const fetchCompetition = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.post("http://localhost:4000/api/comp/getcomp", {
+          id: Number(id),
+        });
+        let comp;
+        if (response.data.data) {
+          // Handle both array and single object responses
+          comp = Array.isArray(response.data.data) ? response.data.data[0] : response.data.data;
+          if (!comp) {
+            throw new Error("Competition not found");
+          }
+          const currentDate = new Date();
+          const deadlineDate = new Date(comp.deadline);
+          const isOpen = currentDate <= deadlineDate;
+          console.log(`Competition ${comp.id}: Current Date=${currentDate.toISOString()}, Deadline=${deadlineDate.toISOString()}, Is Registration Open=${isOpen}`);
+          setIsRegistrationOpen(isOpen);
+          setCompetition({
+            id: comp.id,
+            title: comp.name,
+            description: comp.about,
+            category: comp.category,
+            startDate: new Date(comp.startdate).toLocaleDateString(),
+            endDate: new Date(comp.enddate).toLocaleDateString(),
+            registrationDeadline: new Date(comp.deadline).toLocaleDateString(),
+            deadlineRaw: comp.deadline,
+            location: comp.location,
+            teamSize: comp.team_size,
+            prizePool: comp.prize_pool,
+            priority: comp.priority.toLowerCase(),
+            status: isOpen ? comp.status.toLowerCase().replace("_open", "") : "closed",
+            url: comp.url,
+            requirements: [
+              "Must be currently enrolled students",
+              `Team of ${comp.team_size} members required`,
+              "Basic knowledge of relevant technologies",
+            ],
+          });
+        } else {
+          throw new Error("No competition data returned");
+        }
+      } catch (err) {
+        setError("Failed to fetch competition details: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchCompetition();
+    }
+  }, [id]);
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleMemberChange = (index, value) => {
+    const newMembers = [...formData.teamMembers];
+    newMembers[index] = value;
+    setFormData((prev) => ({ ...prev, teamMembers: newMembers }));
+  };
+
+  const addMember = () => {
+    if (formData.teamMembers.length < (competition?.teamSize || 4)) {
+      setFormData((prev) => ({
+        ...prev,
+        teamMembers: [...prev.teamMembers, ""],
+      }));
+    }
+  };
+
+  const removeMember = (index) => {
+    if (formData.teamMembers.length > 1) {
+      const newMembers = formData.teamMembers.filter((_, i) => i !== index);
+      setFormData((prev) => ({ ...prev, teamMembers: newMembers }));
+    }
+  };
+
+  const handleRegistration = async (e) => {
+    e.preventDefault();
+    if (!user?.email) {
+      setError("You must be logged in to register");
+      return;
+    }
+
+    // Validate team members
+    const validMembers = formData.teamMembers.filter((reg) => reg.trim());
+    if (validMembers.length === 0) {
+      setError("At least one team member registration number is required");
+      return;
+    }
+
+    setIsRegistering(true);
+    try {
+      const payload = {
+        name: formData.teamName,
+        competitionId: Number(id),
+        motive: formData.motivation,
+        experience_level: formData.experience.toUpperCase() || "INTERMEDIATE",
+        memberRegisterNumbers: validMembers,
+      };
+
+      const response = await axios.post("http://localhost:4000/api/team/create", payload);
+      if (response.status === 201 || response.data.team) {
+        setShowRegistrationForm(false);
+        alert("Registration submitted successfully!");
+        setFormData({
+          teamName: "",
+          teamMembers: [""],
+          experience: "",
+          motivation: "",
+        });
+      } else {
+        throw new Error("Registration failed");
+      }
+    } catch (err) {
+      setError("Failed to register team: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      ongoing: { bg: "bg-green-100", text: "text-green-800", label: "Ongoing" },
+      upcoming: { bg: "bg-blue-100", text: "text-blue-800", label: "Upcoming" },
+      registration: { bg: "bg-yellow-100", text: "text-yellow-800", label: "Registration Open" },
+      completed: { bg: "bg-gray-100", text: "text-gray-800", label: "Completed" },
+      closed: { bg: "bg-red-100", text: "text-red-800", label: "Closed" },
+    };
+    const config = statusConfig[status] || statusConfig["upcoming"];
+    return (
+      <span
+        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.bg} ${config.text}`}
+      >
+        {config.label}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <svg
+          className="animate-spin h-8 w-8 text-blue-600"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span className="ml-3 text-gray-700">Loading...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">{error}</h2>
+        <Link to="/student/competitions" className="text-blue-600 hover:text-blue-800">
+          Back to Competitions
+        </Link>
+      </div>
+    );
+  }
 
   if (!competition) {
     return (
@@ -29,61 +206,7 @@ export default function CompetitionDetail() {
           Back to Competitions
         </Link>
       </div>
-    )
-  }
-
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleMemberChange = (index, value) => {
-    const newMembers = [...formData.teamMembers]
-    newMembers[index] = value
-    setFormData((prev) => ({ ...prev, teamMembers: newMembers }))
-  }
-
-  const addMember = () => {
-    if (formData.teamMembers.length < competition.teamSize) {
-      setFormData((prev) => ({
-        ...prev,
-        teamMembers: [...prev.teamMembers, ""],
-      }))
-    }
-  }
-
-  const removeMember = (index) => {
-    if (formData.teamMembers.length > 1) {
-      const newMembers = formData.teamMembers.filter((_, i) => i !== index)
-      setFormData((prev) => ({ ...prev, teamMembers: newMembers }))
-    }
-  }
-
-  const handleRegistration = async (e) => {
-    e.preventDefault()
-    setIsRegistering(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsRegistering(false)
-      setShowRegistrationForm(false)
-      alert("Registration submitted successfully!")
-    }, 2000)
-  }
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      ongoing: { bg: "bg-green-100", text: "text-green-800", label: "Ongoing" },
-      upcoming: { bg: "bg-blue-100", text: "text-blue-800", label: "Upcoming" },
-      registration: { bg: "bg-yellow-100", text: "text-yellow-800", label: "Registration Open" },
-    }
-    const config = statusConfig[status] || statusConfig["upcoming"]
-    return (
-      <span
-        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.bg} ${config.text}`}
-      >
-        {config.label}
-      </span>
-    )
+    );
   }
 
   return (
@@ -183,25 +306,12 @@ export default function CompetitionDetail() {
           <div className="bg-white rounded-lg shadow-md border p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
             <ul className="space-y-2">
-              {competition.requirements?.map((req, index) => (
+              {competition.requirements.map((req, index) => (
                 <li key={index} className="flex items-start space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">{req}</span>
                 </li>
-              )) || [
-                <li key="1" className="flex items-start space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">Must be currently enrolled students</span>
-                </li>,
-                <li key="2" className="flex items-start space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">Team of {competition.teamSize} members required</span>
-                </li>,
-                <li key="3" className="flex items-start space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">Basic knowledge of relevant technologies</span>
-                </li>,
-              ]}
+              ))}
             </ul>
           </div>
 
@@ -232,14 +342,14 @@ export default function CompetitionDetail() {
                   <p className="text-gray-600 mb-4">Ready to participate in this exciting competition?</p>
                   <button
                     onClick={() => setShowRegistrationForm(true)}
-                    disabled={competition.status !== "registration"}
+                    disabled={!isRegistrationOpen || !user}
                     className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                      competition.status === "registration"
+                      isRegistrationOpen && user
                         ? "bg-blue-600 hover:bg-blue-700 text-white"
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     }`}
                   >
-                    {competition.status === "registration" ? "Register Now" : "Registration Closed"}
+                    {isRegistrationOpen ? (!user ? "Login to Register" : "Register Now") : "Registration Closed"}
                   </button>
                 </div>
 
@@ -261,13 +371,13 @@ export default function CompetitionDetail() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Members *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Members (Registration Numbers) *</label>
                   {formData.teamMembers.map((member, index) => (
                     <div key={index} className="flex gap-2 mb-2">
                       <input
                         type="text"
                         required
-                        placeholder={`Member ${index + 1} name`}
+                        placeholder={`Member ${index + 1} registration number (e.g., 21IT0026)`}
                         value={member}
                         onChange={(e) => handleMemberChange(index, e.target.value)}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -292,39 +402,6 @@ export default function CompetitionDetail() {
                       + Add Member
                     </button>
                   )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.contactEmail}
-                    onChange={(e) => handleInputChange("contactEmail", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phoneNumber}
-                    onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Institution *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.institution}
-                    onChange={(e) => handleInputChange("institution", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
                 </div>
 
                 <div>
@@ -362,7 +439,7 @@ export default function CompetitionDetail() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isRegistering}
+                    disabled={isRegistering || !isRegistrationOpen}
                     className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50"
                   >
                     {isRegistering ? "Submitting..." : "Submit Registration"}
@@ -374,5 +451,5 @@ export default function CompetitionDetail() {
         </div>
       </div>
     </div>
-  )
+  );
 }

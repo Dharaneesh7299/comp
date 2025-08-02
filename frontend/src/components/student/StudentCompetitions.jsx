@@ -1,51 +1,114 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import { Calendar, Users, MapPin, Clock, Trophy, Filter, Search } from "lucide-react"
-import { mockData } from "../../lib/mockData"
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Calendar, Users, MapPin, Clock, Trophy, Filter, Search } from "lucide-react";
+import axios from "axios";
 
 export default function StudentCompetitions() {
-  const [filter, setFilter] = useState("all")
-  const [searchTerm, setSearchTerm] = useState("")
+  const [filter, setFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [competitions, setCompetitions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const { competitions } = mockData
+  // Fetch competitions
+  useEffect(() => {
+    const fetchCompetitions = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get("http://localhost:4000/api/comp/get");
+        if (response.data.g_comp) {
+          // Normalize the data to match the component's expected structure
+          const normalizedCompetitions = response.data.g_comp.map((comp) => ({
+            id: comp.id,
+            title: comp.name,
+            description: comp.about,
+            category: comp.category,
+            startDate: new Date(comp.startdate).toLocaleDateString(),
+            endDate: new Date(comp.enddate).toLocaleDateString(),
+            registrationDeadline: new Date(comp.deadline).toLocaleDateString(),
+            location: comp.location,
+            teamSize: comp.team_size,
+            prizePool: comp.prize_pool,
+            priority: comp.priority.toLowerCase(),
+            status: comp.status.toLowerCase().replace("_open", ""), // Normalize status (e.g., REGISTRATION_OPEN -> registration)
+          }));
+          setCompetitions(normalizedCompetitions);
+        } else {
+          throw new Error("No competitions found");
+        }
+      } catch (err) {
+        setError("Failed to fetch competitions: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompetitions();
+  }, []);
 
   const filteredCompetitions = competitions.filter((competition) => {
-    const matchesFilter = filter === "all" || competition.status === filter
+    const matchesFilter = filter === "all" || competition.status === filter;
     const matchesSearch =
       competition.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      competition.category.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
+      competition.category.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   const getStatusBadge = (status) => {
     const statusConfig = {
       ongoing: { bg: "bg-green-100", text: "text-green-800", label: "Ongoing" },
       upcoming: { bg: "bg-blue-100", text: "text-blue-800", label: "Upcoming" },
       registration: { bg: "bg-yellow-100", text: "text-yellow-800", label: "Registration Open" },
-    }
-    const config = statusConfig[status] || statusConfig["upcoming"]
+      completed: { bg: "bg-gray-100", text: "text-gray-800", label: "Completed" }, // Added completed status
+    };
+    const config = statusConfig[status] || statusConfig["upcoming"];
     return (
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
       >
         {config.label}
       </span>
-    )
-  }
+    );
+  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
       case "high":
-        return "text-red-600"
+        return "text-red-600";
       case "medium":
-        return "text-yellow-600"
+        return "text-yellow-600";
       case "low":
-        return "text-green-600"
+        return "text-green-600";
       default:
-        return "text-gray-600"
+        return "text-gray-600";
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <svg
+          className="animate-spin h-8 w-8 text-blue-600"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span className="ml-3 text-gray-700">Loading...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-red-600 text-center py-4">{error}</div>;
   }
 
   return (
@@ -82,6 +145,7 @@ export default function StudentCompetitions() {
               <option value="registration">Registration Open</option>
               <option value="upcoming">Upcoming</option>
               <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
         </div>
@@ -156,5 +220,5 @@ export default function StudentCompetitions() {
         </div>
       )}
     </div>
-  )
+  );
 }

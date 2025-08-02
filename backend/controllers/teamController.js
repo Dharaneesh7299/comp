@@ -81,7 +81,8 @@ const getAllTeams = async (req, res) => {
       include: {
         competition: true,
         members: { include: { student: true } }
-      }
+      },
+      orderBy : {createdAt : "desc"}
     });
 
     res.status(200).json({ message: 'Teams fetched successfully', teams });
