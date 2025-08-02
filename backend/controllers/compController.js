@@ -131,12 +131,13 @@ const delete_comp = async (req, res) => {
 const get_comp = async (req, res) => {
   try {
     const g_comp = await prisma.competition.findMany({
+      where : {  NOT : {status : "COMPLETED"} },
       include: {
         _count: {
           select: { teams: true },
         },
       },
-      orderBy: { deadline: 'asc' },
+      orderBy: { deadline: 'desc' },
     });
 
     res.set('Cache-Control', 'no-cache');
@@ -152,6 +153,33 @@ const get_comp = async (req, res) => {
   }
 };
 
+//get comp with id
+
+const comp_id = async (req,res)=>{
+    const {id} = req.body;
+
+    try{
+
+      if (!id){
+        return res.status(404).json({message : "provide id"});
+      }
+
+      const g_comp_id = await prisma.competition.findMany({
+        where : {id}
+      });
+
+      if (!g_comp_id){
+        return res.status(404).json({message : "competition not found"});
+      }
+
+      return res.status(200).json({message : "fetched successfully" , data : g_comp_id});
+    }
+    catch(error){
+      console.error(error);
+      return res.status(500).json({message : "inetrnal server error" , error : error.message});
+    }
+}
+
 
 
 module.exports = {
@@ -159,4 +187,5 @@ module.exports = {
   update_comp,
   delete_comp,
   get_comp,
+  comp_id
 };
