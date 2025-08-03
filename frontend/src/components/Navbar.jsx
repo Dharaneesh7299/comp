@@ -2,6 +2,7 @@
 
 import { Trophy, Home, User } from "lucide-react"
 
+
 export default function Navbar({ currentView, setCurrentView }) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: Home },
@@ -42,7 +43,7 @@ export default function Navbar({ currentView, setCurrentView }) {
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-2">
               <User className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">John Doe</span>
+              <span className="text-sm font-medium text-gray-700">n doe</span>
             </div>
           </div>
         </div>

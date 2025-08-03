@@ -1,4 +1,17 @@
 const prisma = require('../prisma')
+const sharp = require('sharp')
+const supabase = require('../utils/supabaseClient')
+
+const path = require("path");
+
+function generateSafeFilename(originalName) {
+  const timestamp = Date.now();
+  const ext = path.extname(originalName); // e.g. ".png"
+  const nameWithoutExt = path.basename(originalName, ext);
+  const safeName = nameWithoutExt.replace(/[^a-z0-9]/gi, "_").toLowerCase(); // replaces unsafe chars
+  return `certificates/${timestamp}_${safeName}${ext}`;
+}
+
 
 // CREATE TEAM
 const createTeam = async (req, res) => {
@@ -316,7 +329,6 @@ const dash_data = async (req,res) => {
 
     const active_teams = await prisma.team.count ({
       where : {
-        del_status : "ONLINE" ,
         members : {
           some : {
             studentId : id
@@ -351,6 +363,66 @@ const dash_data = async (req,res) => {
   }
 }
 
+// certificate uploading using supabse
+
+const upload_cert = async (req, res) => {
+  const { id } = req.body;
+
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  const { originalname, mimetype, buffer } = req.file;
+  const fileName = generateSafeFilename(originalname);
+
+  try {
+
+    // Step 1: Compress image to be under 50 KB
+    let compressedBuffer = await sharp(buffer)
+      .resize({ width: 800 }) // Optional: resize width to reduce size
+      .jpeg({ quality: 70 })  // Adjust quality to reduce size
+      .toBuffer();
+
+    // Ensure it's < 50 KB
+    while (compressedBuffer.length > 50 * 1024) {
+      compressedBuffer = await sharp(compressedBuffer)
+        .jpeg({ quality: 60 }) // keep lowering quality
+        .toBuffer();
+
+      if (compressedBuffer.length < 50 * 1024) break;
+    }
+
+    const { data, error } = await supabase.storage
+      .from('certificates')
+      .upload(fileName, compressedBuffer, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    if (error) throw error;
+
+    const { data: publicURLData } = supabase
+      .storage
+      .from('certificates')
+      .getPublicUrl(fileName);
+
+    const imageURL = publicURLData.publicUrl;
+
+    const updated = await prisma.team.update({
+      where: { id: Number(id) },
+      data: { certifacte: imageURL },
+    });
+
+    return res.status(200).json({ message: "Certificate uploaded", url: imageURL, data: updated });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Upload failed", error: err.message });
+  }
+};
+
+
+
+
 module.exports = {
   createTeam,
   getAllTeams,
@@ -358,5 +430,6 @@ module.exports = {
   updateTeamStatus,
   deleteTeam,
   stdteam_data,
-  dash_data
+  dash_data,
+  upload_cert
 };
