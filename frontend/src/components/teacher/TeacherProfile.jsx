@@ -22,7 +22,7 @@ export default function TeacherProfile() {
       try {
         setLoading(true);
         const response = await axios.post(
-          "http://localhost:4000/api/teacher/getprofile",
+          "https://comp-backend.onrender.com/api/teacher/getprofile",
           { email: user.email }
         );
 
@@ -109,7 +109,7 @@ export default function TeacherProfile() {
       };
 
       const response = await axios.put(
-        "http://localhost:4000/api/teacher/updateteacher",
+        "https://comp-backend.onrender.com/api/teacher/updateteacher",
         payload
       );
 

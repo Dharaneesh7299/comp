@@ -38,7 +38,7 @@ export default function ManageCompetitions() {
     try {
       const response = await pRetry(
         () =>
-          axios.get('http://localhost:4000/api/comp/get', {
+          axios.get('https://comp-backend.onrender.com/api/comp/get', {
             signal,
             headers: {
               'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -158,7 +158,7 @@ export default function ManageCompetitions() {
       let response;
       if (editingCompetition) {
         response = await pRetry(
-          () => axios.put('http://localhost:4000/api/comp/update', submitData),
+          () => axios.put('https://comp-backend.onrender.com/api/comp/update', submitData),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         const updatedCompetition = {
@@ -182,7 +182,7 @@ export default function ManageCompetitions() {
         );
       } else {
         response = await pRetry(
-          () => axios.post('http://localhost:4000/api/comp/add', submitData),
+          () => axios.post('https://comp-backend.onrender.com/api/comp/add', submitData),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         const newCompetition = {
@@ -264,7 +264,7 @@ export default function ManageCompetitions() {
       setIsLoading(true); // Show loading during deletion
       try {
         const response = await pRetry(
-          () => axios.delete('http://localhost:4000/api/comp/delete', {data : { id: competitionId }}),
+          () => axios.delete('https://comp-backend.onrender.com/api/comp/delete', {data : { id: competitionId }}),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         if (response.data.message === 'Deleted successfully') {
