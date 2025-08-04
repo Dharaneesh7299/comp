@@ -52,7 +52,7 @@ export default function StudentProfile() {
       console.log("Loading started");
       setLoading(true);
       try {
-        const response = await axios.post("http://localhost:4000/api/student/getprofile", {
+        const response = await axios.post("https://comp-backend.onrender.com/api/student/getprofile", {
           email: user.email,
         });
         console.log("API Response:", response.data);
@@ -119,7 +119,7 @@ export default function StudentProfile() {
         skills: skills || "Provide It",
         Achivements: achievements || "Provide It",
       };
-      const response = await axios.put("http://localhost:4000/api/student/updateprofile", payload, {
+      const response = await axios.put("https://comp-backend.onrender.com/api/student/updateprofile", payload, {
         headers: { "Content-Type": "application/json" },
       });
       if (response.data.message === "Profile updated successfully") {

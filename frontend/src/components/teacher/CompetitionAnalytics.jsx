@@ -40,7 +40,7 @@ export default function CompetitionAnalytics() {
       setError(null);
       try {
         // Fetch counts
-        const countResponse = await axios.get("http://localhost:4000/api/analytics/count", {
+        const countResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/count", {
           params: { period: selectedPeriod },
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -51,7 +51,7 @@ export default function CompetitionAnalytics() {
         setAnalyticsData(countResponse.data.data);
 
         // Fetch category breakdown
-        const categoryResponse = await axios.get("http://localhost:4000/api/analytics/category");
+        const categoryResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/category");
         const categories = categoryResponse.data.out_data.reduce((acc, item) => {
           acc[item.category] = item.count;
           return acc;
@@ -59,18 +59,18 @@ export default function CompetitionAnalytics() {
         setCategoryBreakdown(categories);
 
         // Fetch registration trends
-        const trendsResponse = await axios.get("http://localhost:4000/api/analytics/month");
+        const trendsResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/month");
         setRegistrationTrends(trendsResponse.data.data);
 
         // Fetch monthly competition and student counts
-        const stdcount = await axios.get("http://localhost:4000/api/analytics/std");
+        const stdcount = await axios.get("https://comp-backend.onrender.com/api/analytics/std");
         setStudentCount(stdcount.data.data);
 
-        const compcount = await axios.get("http://localhost:4000/api/analytics/comp");
+        const compcount = await axios.get("https://comp-backend.onrender.com/api/analytics/comp");
         setCompCount(compcount.data.data);
 
         // Fetch top competitions
-        const mostResponse = await axios.get("http://localhost:4000/api/analytics/most");
+        const mostResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/most");
         const performance = mostResponse.data.data.map((comp) => ({
           id: comp.id,
           title: comp.name,
