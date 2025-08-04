@@ -27,7 +27,7 @@ export default function CompetitionDetail() {
     const fetchCompetition = async () => {
       setLoading(true);
       try {
-        const response = await axios.post("https://comp-backend.onrender.com/api/comp/getcomp", {
+        const response = await axios.post("https://comp-kyir.onrender.com/api/comp/getcomp", {
           id: Number(id),
         });
         let comp;
@@ -128,7 +128,7 @@ export default function CompetitionDetail() {
         memberRegisterNumbers: validMembers,
       };
 
-      const response = await axios.post("https://comp-backend.onrender.com/api/team/create", payload);
+      const response = await axios.post("https://comp-kyir.onrender.com/api/team/create", payload);
       if (response.status === 201 || response.data.team) {
         setShowRegistrationForm(false);
         alert("Registration submitted successfully!");

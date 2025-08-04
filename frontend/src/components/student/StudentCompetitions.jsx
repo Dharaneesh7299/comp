@@ -17,7 +17,7 @@ export default function StudentCompetitions() {
     const fetchCompetitions = async () => {
       setLoading(true);
       try {
-        const response = await axios.get("https://comp-backend.onrender.com/api/comp/get");
+        const response = await axios.get("https://comp-kyir.onrender.com/api/comp/get");
         if (response.data.g_comp) {
           // Normalize the data to match the component's expected structure
           const normalizedCompetitions = response.data.g_comp.map((comp) => ({

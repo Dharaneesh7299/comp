@@ -33,7 +33,7 @@ export default function StudentHome() {
       setLoading(true);
       try {
         // Fetch student profile to get studentId
-        const profileResponse = await axios.post("https://comp-backend.onrender.com/api/student/getprofile", {
+        const profileResponse = await axios.post("https://comp-kyir.onrender.com/api/student/getprofile", {
           email: user.email,
         });
         if (!profileResponse.data.student) {
@@ -43,7 +43,7 @@ export default function StudentHome() {
         setStudentId(fetchedStudentId);
 
         // Fetch stats
-        const statsResponse = await axios.post("https://comp-backend.onrender.com/api/team/dash_data", {
+        const statsResponse = await axios.post("https://comp-kyir.onrender.com/api/team/dash_data", {
           id: fetchedStudentId,
         });
         if (statsResponse.data.data) {
@@ -56,7 +56,7 @@ export default function StudentHome() {
         }
 
         // Fetch registrations
-        const teamsResponse = await axios.post("https://comp-backend.onrender.com/api/team/get", {
+        const teamsResponse = await axios.post("https://comp-kyir.onrender.com/api/team/get", {
           studentId: fetchedStudentId,
         });
         if (teamsResponse.data.teams) {
@@ -97,7 +97,7 @@ export default function StudentHome() {
       formData.append("id", registrationId);
       formData.append("certificate", file);
 
-      const uploadResponse = await axios.post("https://comp-backend.onrender.com/api/team/upload_cert", formData, {
+      const uploadResponse = await axios.post("https://comp-kyir.onrender.com/api/team/upload_cert", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -158,7 +158,7 @@ export default function StudentHome() {
     }
 
     try {
-      const statusResponse = await axios.put("https://comp-backend.onrender.com/api/team/update-status", {
+      const statusResponse = await axios.put("https://comp-kyir.onrender.com/api/team/update-status", {
         teamId: registrationId,
         status: upperCaseStatus,
       });

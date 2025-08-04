@@ -24,7 +24,7 @@ export default function TeacherHome() {
       setError(null)
       try {
         // Fetch analytics stats
-        const analyticsResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/count", {
+        const analyticsResponse = await axios.get("https://comp-kyir.onrender.com/api/analytics/count", {
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
             Pragma: "no-cache",
@@ -40,7 +40,7 @@ export default function TeacherHome() {
         })
 
         // Fetch recent competitions with stats
-        const recentCompResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/recent", {
+        const recentCompResponse = await axios.get("https://comp-kyir.onrender.com/api/analytics/recent", {
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
             Pragma: "no-cache",
@@ -58,7 +58,7 @@ export default function TeacherHome() {
         setCompetitions(recentCompetitions)
 
         // Fetch recent registrations
-        const recentRegResponse = await axios.get("https://comp-backend.onrender.com/api/analytics/recentreg", {
+        const recentRegResponse = await axios.get("https://comp-kyir.onrender.com/api/analytics/recentreg", {
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate",
             Pragma: "no-cache",
