@@ -38,7 +38,7 @@ export default function StudentTeams() {
       setLoading(true);
       try {
         // Fetch student profile to get correct studentId
-        const profileResponse = await axios.post("https://comp-backend.onrender.com/api/student/getprofile", {
+        const profileResponse = await axios.post("https://comp-kyir.onrender.com/api/student/getprofile", {
           email: user.email,
         });
         if (!profileResponse.data.student) {
@@ -48,7 +48,7 @@ export default function StudentTeams() {
         setStudentId(fetchedStudentId);
 
         // Fetch teams with competition and member details
-        const teamsResponse = await axios.post("https://comp-backend.onrender.com/api/team/get", {
+        const teamsResponse = await axios.post("https://comp-kyir.onrender.com/api/team/get", {
           studentId: fetchedStudentId,
         });
         const fetchedTeams = teamsResponse.data.teams.map((team) => ({
@@ -90,7 +90,7 @@ export default function StudentTeams() {
         setCompetitions(uniqueCompetitions);
 
         // Fetch team statistics
-        const statsResponse = await axios.post("https://comp-backend.onrender.com/api/team/std_data", {
+        const statsResponse = await axios.post("https://comp-kyir.onrender.com/api/team/std_data", {
           id: fetchedStudentId,
         });
         setStats({
@@ -134,7 +134,7 @@ export default function StudentTeams() {
 
     try {
       // Update team
-      const response = await axios.put("https://comp-backend.onrender.com/api/team/update", payload);
+      const response = await axios.put("https://comp-kyir.onrender.com/api/team/update", payload);
       setTeams((prev) =>
         prev.map((team) =>
           team.id === editingTeam.id
@@ -166,7 +166,7 @@ export default function StudentTeams() {
       );
 
       // Update stats
-      const statsResponse = await axios.post("https://comp-backend.onrender.com/api/team/std_data", {
+      const statsResponse = await axios.post("https://comp-kyir.onrender.com/api/team/std_data", {
         id: studentId,
       });
       setStats({
@@ -210,12 +210,12 @@ export default function StudentTeams() {
 
     if (window.confirm("Are you sure you want to leave this team?")) {
       try {
-        await axios.delete("https://comp-backend.onrender.com/api/team/delete", {
+        await axios.delete("https://comp-kyir.onrender.com/api/team/delete", {
           data: { id: teamId },
         });
         setTeams((prev) => prev.filter((team) => team.id !== teamId));
         // Update stats
-        const statsResponse = await axios.post("https://comp-backend.onrender.com/api/team/std_data", {
+        const statsResponse = await axios.post("https://comp-kyir.onrender.com/api/team/std_data", {
           id: studentId,
         });
         setStats({

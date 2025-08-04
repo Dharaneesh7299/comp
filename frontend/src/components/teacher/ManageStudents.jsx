@@ -34,7 +34,7 @@ export default function ManageStudents() {
       try {
         const response = await pRetry(
           () =>
-            axios.get('https://comp-backend.onrender.com/api/teacher/getstudent', {
+            axios.get('https://comp-kyir.onrender.com/api/teacher/getstudent', {
               signal,
               headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -148,7 +148,7 @@ export default function ManageStudents() {
       let response;
       if (editingStudent) {
         response = await pRetry(
-          () => axios.put('https://comp-backend.onrender.com/api/teacher/updatestudent', submitData),
+          () => axios.put('https://comp-kyir.onrender.com/api/teacher/updatestudent', submitData),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         const updatedStudent = {
@@ -165,7 +165,7 @@ export default function ManageStudents() {
         );
       } else {
         response = await pRetry(
-          () => axios.post('https://comp-backend.onrender.com/api/teacher/addstudent', submitData),
+          () => axios.post('https://comp-kyir.onrender.com/api/teacher/addstudent', submitData),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         const newStudent = {
@@ -200,7 +200,7 @@ export default function ManageStudents() {
       setIsLoading(true);
       try {
         const response = await pRetry(
-          () => axios.delete('https://comp-backend.onrender.com/api/teacher/deletestudent', { data: { id: studentId } }),
+          () => axios.delete('https://comp-kyir.onrender.com/api/teacher/deletestudent', { data: { id: studentId } }),
           { retries: 3, minTimeout: 1000, maxTimeout: 5000 }
         );
         if (response.data.message === 'Student deleted successfully') {
